@@ -1,9 +1,14 @@
-# Books an appointment for a client on an approved slot.
-# Wraps the write in a transaction and locks the slot row so two
-# concurrent requests cannot double-book it. The DB partial unique
-# index is the final backstop.
+# Books an appointment for a client on an approved slot and creates the
+# associated Payment (pending) with a gateway payment intent.
+#
+# The appointment is created as `pending_payment` so the slot is reserved
+# (RESERVING_STATUSES) and cannot be double-booked while payment is in
+# flight. ConfirmPayment later flips it to `booked` or `payment_failed`.
+#
+# Concurrency: the slot row is locked; the DB partial unique index is the
+# final backstop against double-booking.
 class BookAppointment
-  Result = Struct.new(:success?, :appointment, :error, keyword_init: true)
+  Result = Struct.new(:success?, :appointment, :payment, :error, keyword_init: true)
 
   class BookingError < StandardError; end
 
@@ -17,6 +22,7 @@ class BookAppointment
 
   def call
     appointment = nil
+    payment = nil
 
     ActiveRecord::Base.transaction do
       slot = AvailabilitySlot.lock.find_by(id: @availability_slot_id)
@@ -29,18 +35,35 @@ class BookAppointment
         client_profile: @client_profile,
         therapist_profile_id: slot.therapist_profile_id,
         availability_slot: slot,
-        reason: @reason
+        reason: @reason,
+        status: :pending_payment
       )
-
       unless appointment.save
         raise BookingError, appointment.errors.full_messages.to_sentence
       end
+
+      payment = Payment.create!(
+        appointment: appointment,
+        client_profile: @client_profile,
+        amount_cents: slot.therapist_profile.hourly_rate_cents.to_i,
+        currency: "USD",
+        status: :pending
+      )
+
+      intent = PaymentGateways.current.create_intent(payment)
+      payment.update!(
+        provider: intent[:provider],
+        provider_reference: intent[:provider_reference],
+        provider_payload: intent[:payload] || {}
+      )
     end
 
-    Result.new(success?: true, appointment: appointment)
+    Result.new(success?: true, appointment: appointment, payment: payment)
   rescue BookingError => e
     Result.new(success?: false, error: e.message)
   rescue ActiveRecord::RecordNotUnique
     Result.new(success?: false, error: "Slot is already booked")
+  rescue ActiveRecord::RecordInvalid => e
+    Result.new(success?: false, error: e.message)
   end
 end

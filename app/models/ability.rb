@@ -60,6 +60,6 @@ class Ability
     # Manage only their own appointments.
     can :create, Appointment
     can :read, Appointment, client_profile_id: cp.id
-    can :destroy, Appointment, client_profile_id: cp.id, status: "booked"
+    can :destroy, Appointment, client_profile_id: cp.id, status: %w[booked pending_payment]
   end
 end

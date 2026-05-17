@@ -28,8 +28,10 @@ module Api
           )
 
           if result.success?
-            render json: { appointment: AppointmentSerializer.call(result.appointment) },
-              status: :created
+            render json: {
+              appointment: AppointmentSerializer.call(result.appointment),
+              payment: PaymentSerializer.call(result.payment)
+            }, status: :created
           else
             render json: { error: result.error }, status: :unprocessable_entity
           end

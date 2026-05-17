@@ -1,7 +1,7 @@
 class AvailabilitySlot < ApplicationRecord
   belongs_to :therapist_profile
 
-  has_one :appointment, dependent: :restrict_with_error
+  has_many :appointments, dependent: :restrict_with_error
 
   enum :status, { proposed: 0, approved: 1, rejected: 2 }, default: :proposed
 
@@ -13,12 +13,20 @@ class AvailabilitySlot < ApplicationRecord
   scope :bookable, lambda {
     approved
       .where("starts_at > ?", Time.current)
-      .where.missing(:appointment)
+      .where.not(
+        id: Appointment.where(status: Appointment::RESERVING_STATUSES)
+                        .select(:availability_slot_id)
+      )
   }
   scope :for_therapist, ->(tp_id) { where(therapist_profile_id: tp_id) }
 
+  # The appointment currently holding this slot (if any).
+  def active_appointment
+    appointments.where(status: Appointment::RESERVING_STATUSES).first
+  end
+
   def booked?
-    appointment.present? && !appointment.cancelled?
+    active_appointment.present?
   end
 
   private

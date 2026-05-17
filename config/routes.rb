@@ -54,6 +54,9 @@ Rails.application.routes.draw do
         # Bookable approved slots, optionally filtered by therapist.
         resources :availability_slots, only: %i[index]
         resources :appointments, only: %i[index show create destroy]
+        resources :payments, only: %i[show] do
+          member { post :confirm }
+        end
       end
     end
   end

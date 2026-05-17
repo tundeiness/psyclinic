@@ -1,0 +1,11 @@
+Hello <%= @therapist.full_name %>,
+
+You have a new confirmed appointment.
+
+Client:  <%= @client.full_name %>
+When:    <%= @slot.starts_at.strftime("%A, %d %B %Y at %H:%M") %> –
+         <%= @slot.ends_at.strftime("%H:%M") %>
+
+The session has been paid for and is confirmed.
+
+— The PsyClinic Team

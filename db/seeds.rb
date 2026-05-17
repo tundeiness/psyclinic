@@ -29,6 +29,7 @@ if therapist.new_record?
     first_name: "Jane",
     last_name: "Doe",
     role: :therapist,
+    status: :approved,
     password: "Password123!",
     password_confirmation: "Password123!"
   )
@@ -50,6 +51,7 @@ if client.new_record?
     first_name: "John",
     last_name: "Smith",
     role: :client,
+    status: :approved,
     password: "Password123!",
     password_confirmation: "Password123!"
   )

@@ -1,7 +1,6 @@
 class TherapistProfile < ApplicationRecord
   belongs_to :user
 
-  has_many :client_profiles, dependent: :nullify
   has_many :availability_slots, dependent: :destroy
   has_many :appointments, dependent: :destroy
 
@@ -12,7 +11,13 @@ class TherapistProfile < ApplicationRecord
 
   delegate :full_name, :email, to: :user
 
-  def paired_clients
-    client_profiles
+  # Clients who have at least one (non-cancelled) appointment with this
+  # therapist. Replaces the old admin-assigned pairing.
+  def clients_with_appointments
+    ClientProfile
+      .joins(:appointments)
+      .where(appointments: { therapist_profile_id: id })
+      .where.not(appointments: { status: :cancelled })
+      .distinct
   end
 end

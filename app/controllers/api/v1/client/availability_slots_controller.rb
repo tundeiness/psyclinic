@@ -2,21 +2,34 @@ module Api
   module V1
     module Client
       class AvailabilitySlotsController < BaseController
-        # A client only ever sees approved, unbooked, future slots —
-        # and only for the therapist they are paired with.
+        # Clients browse ALL approved, unbooked, future slots across every
+        # approved therapist. Optional filters support the calendar /
+        # monthly view: ?therapist_profile_id=, ?date=YYYY-MM-DD,
+        # ?month=YYYY-MM.
         def index
           cp = current_client_profile
           return render_error("No client profile", status: :forbidden) if cp.nil?
 
-          unless cp.paired?
-            return render json: { availability_slots: [], message: "You are not yet paired with a therapist" }
+          slots = AvailabilitySlot.bookable
+                                  .includes(therapist_profile: :user)
+                                  .order(starts_at: :asc)
+
+          if params[:therapist_profile_id].present?
+            slots = slots.for_therapist(params[:therapist_profile_id])
           end
 
-          slots = AvailabilitySlot.bookable.for_therapist(cp.therapist_profile_id)
-                                  .includes(:therapist_profile)
-                                  .order(starts_at: :asc)
+          if params[:date].present?
+            day = Date.parse(params[:date])
+            slots = slots.where(starts_at: day.all_day)
+          elsif params[:month].present?
+            start_of_month = Date.strptime(params[:month], "%Y-%m")
+            slots = slots.where(starts_at: start_of_month.all_month)
+          end
+
           slots.each { |s| authorize! :read, s }
           render json: { availability_slots: slots.map { |s| AvailabilitySlotSerializer.call(s) } }
+        rescue ArgumentError, Date::Error
+          render_error("Invalid date or month format", status: :unprocessable_entity)
         end
       end
     end

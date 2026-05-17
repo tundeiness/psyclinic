@@ -24,11 +24,16 @@ Rails.application.routes.draw do
 
       # --- Admin (Head-Therapist) management surface ---
       namespace :admin do
+        resources :applications, only: %i[index] do
+          member do
+            patch :approve
+            patch :reject
+          end
+        end
         resources :clients, only: %i[index show destroy]
         resources :therapists, only: %i[index show create destroy]
         resources :specializations, only: %i[index create destroy]
         resources :therapist_specializations, only: %i[create destroy]
-        resources :pairings, only: %i[index create destroy]
         resources :availability_slots, only: %i[index update] do
           member do
             patch :approve

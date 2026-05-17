@@ -1,11 +1,8 @@
 require "rails_helper"
 
-# These specs verify the booking/pairing DOMAIN LOGIC and AUTHORIZATION
-# rules directly (service objects, models, CanCanCan abilities) rather
-# than through the HTTP layer. The real HTTP auth path is already covered
-# by auth_spec.rb (signup + login hit the actual endpoints). Testing the
-# domain directly is deterministic and isolates business correctness from
-# test-harness session/token concerns.
+# Verifies booking DOMAIN LOGIC and AUTHORIZATION rules directly (service
+# objects, models, CanCanCan abilities). Pairing has been removed: a
+# client may book any approved, free slot from any therapist.
 RSpec.describe "Booking domain" do
   let(:therapist_user) { create(:user, :therapist) }
   let(:client_user)    { create(:user, :client) }
@@ -21,25 +18,8 @@ RSpec.describe "Booking domain" do
     )
   end
 
-  describe "PairClientWithTherapist" do
-    it "pairs a client with an active therapist" do
-      result = PairClientWithTherapist.call(client_profile: cp, therapist_profile: tp)
-      expect(result.success?).to be(true)
-      expect(cp.reload.therapist_profile_id).to eq(tp.id)
-    end
-
-    it "refuses to pair with an inactive therapist" do
-      tp.update!(active: false)
-      result = PairClientWithTherapist.call(client_profile: cp, therapist_profile: tp)
-      expect(result.success?).to be(false)
-      expect(cp.reload.therapist_profile_id).to be_nil
-    end
-  end
-
   describe "BookAppointment" do
-    before { cp.update!(therapist_profile: tp) }
-
-    it "books an approved, free slot" do
+    it "books an approved, free slot (no pairing required)" do
       s = make_slot(status: :approved)
       result = BookAppointment.call(client_profile: cp, availability_slot_id: s.id, reason: "First")
       expect(result.success?).to be(true)
@@ -71,12 +51,29 @@ RSpec.describe "Booking domain" do
     end
   end
 
+  describe "TherapistProfile#clients_with_appointments" do
+    it "returns clients who have a non-cancelled appointment" do
+      s = make_slot(status: :approved)
+      BookAppointment.call(client_profile: cp, availability_slot_id: s.id)
+      expect(tp.clients_with_appointments).to include(cp)
+    end
+
+    it "excludes clients with no appointments" do
+      expect(tp.clients_with_appointments).not_to include(cp)
+    end
+  end
+
   describe "Ability (authorization rules)" do
     it "lets an admin manage clients and approve slots" do
       admin = create(:user, :admin)
       ability = Ability.new(admin)
       expect(ability.can?(:read, ClientProfile)).to be(true)
       expect(ability.can?(:approve, AvailabilitySlot.new)).to be(true)
+    end
+
+    it "lets an admin manage users (approve/reject applications)" do
+      admin = create(:user, :admin)
+      expect(Ability.new(admin).can?(:manage, User)).to be(true)
     end
 
     it "lets a therapist create their own availability slots" do
@@ -90,6 +87,16 @@ RSpec.describe "Booking domain" do
       ability = Ability.new(therapist_user)
       foreign_slot = AvailabilitySlot.new(therapist_profile_id: other.id)
       expect(ability.can?(:create, foreign_slot)).to be(false)
+    end
+
+    it "lets a therapist read a client who booked them, not a stranger" do
+      s = make_slot(status: :approved)
+      BookAppointment.call(client_profile: cp, availability_slot_id: s.id)
+      stranger = create(:user, :client).client_profile
+
+      ability = Ability.new(therapist_user)
+      expect(ability.can?(:read, cp)).to be(true)
+      expect(ability.can?(:read, stranger)).to be(false)
     end
 
     it "does NOT let a client read the admin client list" do

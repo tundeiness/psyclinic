@@ -27,5 +27,11 @@ Rails.application.configure do
   config.action_mailer.perform_caching = false
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # No SMTP in development. Write each delivered email to the Rails log
+  # so it's visible via `docker compose logs web`. No external service,
+  # no extra gems.
+  config.action_mailer.delivery_method = :logger_delivery
+  config.action_mailer.perform_deliveries = true
+
   config.active_job.verbose_enqueue_logs = true
 end

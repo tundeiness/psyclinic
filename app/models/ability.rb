@@ -32,8 +32,14 @@ class Ability
     tp = user.therapist_profile
     return if tp.nil?
 
-    # Only their own clients (paired by admin).
-    can :read, ClientProfile, therapist_profile_id: tp.id
+    # Clients who have booked an appointment with this therapist
+    # (replaces the old admin-assigned pairing).
+    can :read, ClientProfile do |client_profile|
+      Appointment.where(
+        client_profile_id: client_profile.id,
+        therapist_profile_id: tp.id
+      ).where.not(status: :cancelled).exists?
+    end
 
     # Author and manage their own availability.
     can %i[read create update destroy], AvailabilitySlot, therapist_profile_id: tp.id

@@ -6,8 +6,7 @@ module Api
           tp = current_therapist_profile
           return render_error("No therapist profile", status: :forbidden) if tp.nil?
 
-          clients = ClientProfile.where(therapist_profile_id: tp.id).includes(:user)
-          # Authorize each (ability scopes to therapist_profile_id).
+          clients = tp.clients_with_appointments.includes(:user)
           clients.each { |c| authorize! :read, c }
           render json: { clients: clients.map { |c| ClientProfileSerializer.call(c) } }
         end

@@ -6,7 +6,6 @@ class Appointment < ApplicationRecord
   enum :status, { booked: 0, completed: 1, cancelled: 2 }, default: :booked
 
   validate :slot_belongs_to_therapist
-  validate :client_is_paired_to_therapist, on: :create
   validate :slot_is_approved, on: :create
   validate :slot_not_already_booked, on: :create
 
@@ -27,14 +26,6 @@ class Appointment < ApplicationRecord
 
     if availability_slot.therapist_profile_id != therapist_profile_id
       errors.add(:availability_slot, "does not belong to the selected therapist")
-    end
-  end
-
-  def client_is_paired_to_therapist
-    return if client_profile.blank? || therapist_profile_id.blank?
-
-    if client_profile.therapist_profile_id != therapist_profile_id
-      errors.add(:base, "client is not paired with this therapist")
     end
   end
 

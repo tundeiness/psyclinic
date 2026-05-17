@@ -11,6 +11,7 @@ class UserSerializer
       full_name: user.full_name,
       phone: user.phone,
       role: user.role,
+      status: user.status,
       created_at: user.created_at
     }
 

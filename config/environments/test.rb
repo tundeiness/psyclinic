@@ -14,6 +14,9 @@ Rails.application.configure do
   config.action_mailer.delivery_method = :test
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # Isolated disk service for tests (tmp/storage), defined in storage.yml.
+  config.active_storage.service = :test
+
   config.active_support.deprecation = :stderr
   config.active_support.disallowed_deprecation = :raise
   config.active_support.disallowed_deprecation_warnings = []

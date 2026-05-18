@@ -35,7 +35,7 @@ module Api
 
         def destroy
           authorize! :destroy, @slot
-          if @slot.appointment.present? && !@slot.appointment.cancelled?
+          if @slot.booked?
             return render_error("Cannot delete a slot with an active booking")
           end
 

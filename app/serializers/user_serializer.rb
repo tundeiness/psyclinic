@@ -12,6 +12,8 @@ class UserSerializer
       phone: user.phone,
       role: user.role,
       status: user.status,
+      avatar: AttachmentSerializer.one(user.avatar),
+      documents: AttachmentSerializer.many(user.documents),
       created_at: user.created_at
     }
 

@@ -3,7 +3,20 @@ class Appointment < ApplicationRecord
   belongs_to :therapist_profile
   belongs_to :availability_slot
 
-  enum :status, { booked: 0, completed: 1, cancelled: 2 }, default: :booked
+  # Integers preserved so existing rows keep their meaning. New states
+  # appended. pending_payment/booked/completed reserve the slot;
+  # cancelled/payment_failed release it (see partial unique index).
+  enum :status, {
+    booked: 0,
+    completed: 1,
+    cancelled: 2,
+    pending_payment: 3,
+    payment_failed: 4
+  }, default: :pending_payment
+
+  has_one :payment, dependent: :destroy
+
+  RESERVING_STATUSES = %w[booked completed pending_payment].freeze
 
   validate :slot_belongs_to_therapist
   validate :slot_is_approved, on: :create
@@ -40,7 +53,7 @@ class Appointment < ApplicationRecord
 
     taken = Appointment
       .where(availability_slot_id: availability_slot_id)
-      .where.not(status: :cancelled)
+      .where(status: RESERVING_STATUSES)
       .where.not(id: id)
       .exists?
 

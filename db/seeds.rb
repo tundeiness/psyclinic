@@ -34,7 +34,13 @@ if therapist.new_record?
     password_confirmation: "Password123!"
   )
   therapist.save!
-  therapist.therapist_profile.update!(bio: "Clinical psychologist.", license_number: "LIC-1001")
+  therapist.therapist_profile.update!(
+    bio: "Clinical psychologist.",
+    license_number: "LIC-1001",
+    headline: "Compassionate, evidence-based therapy",
+    years_experience: 8,
+    hourly_rate_cents: 12_000
+  )
   spec = Specialization.find_by(name: "Anxiety")
   TherapistSpecialization.find_or_create_by!(
     therapist_profile: therapist.therapist_profile,

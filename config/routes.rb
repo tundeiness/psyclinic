@@ -22,6 +22,13 @@ Rails.application.routes.draw do
     namespace :v1 do
       get "me", to: "profiles#me"
 
+      # Current user's avatar & documents (Active Storage).
+      put    "me/avatar",        to: "avatars#update"
+      delete "me/avatar",        to: "avatars#destroy"
+      get    "me/documents",     to: "documents#index"
+      post   "me/documents",     to: "documents#create"
+      delete "me/documents/:id", to: "documents#destroy"
+
       # --- Admin (Head-Therapist) management surface ---
       namespace :admin do
         resources :applications, only: %i[index] do
@@ -54,6 +61,9 @@ Rails.application.routes.draw do
         # Bookable approved slots, optionally filtered by therapist.
         resources :availability_slots, only: %i[index]
         resources :appointments, only: %i[index show create destroy]
+        resources :payments, only: %i[show] do
+          member { post :confirm }
+        end
       end
     end
   end

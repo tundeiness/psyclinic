@@ -29,8 +29,14 @@ Rails.application.routes.draw do
       post   "me/documents",     to: "documents#create"
       delete "me/documents/:id", to: "documents#destroy"
 
+      # --- Public (unauthenticated) welcome page ---
+      namespace :public do
+        resources :therapists, only: %i[index show]
+      end
+
       # --- Admin (Head-Therapist) management surface ---
       namespace :admin do
+        get "dashboard", to: "dashboard#show"
         resources :applications, only: %i[index] do
           member do
             patch :approve

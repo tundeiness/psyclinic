@@ -26,9 +26,9 @@ This will:
 2. wait for it to be healthy,
 3. create the DB, run all migrations (`rails db:prepare`),
 4. seed an admin/therapist/client (idempotent),
-5. boot Puma on http://localhost:3000
+5. boot Puma on http://localhost:39127
 
-Health check: `curl http://localhost:3000/up` → `200`.
+Health check: `curl http://localhost:39127/up` → `200`.
 
 The app inside the container still listens on port 3000; only the host
 port differs. To change which host port you use, edit the left side of

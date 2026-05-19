@@ -38,6 +38,35 @@ services:
       - .:/app
       - bundle:/usr/local/bundle
 
+  # Lightweight scheduler: runs the reminder rake task once an hour.
+  # Reuses the web image; a transparent shell loop instead of a system
+  # cron daemon (no Dockerfile change, nothing here can break the API —
+  # if this container dies the web service is unaffected). The reminder
+  # service is idempotent, so an extra run never double-sends.
+  scheduler:
+    build: .
+    command: >
+      sh -c "while true; do
+        bundle exec rake appointments:send_reminders || true;
+        sleep 3600;
+      done"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: development
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: psyclinic_development
+      DEVISE_JWT_SECRET_KEY: dev_only_insecure_jwt_secret_change_me_please_32chars_min
+      SECRET_KEY_BASE: dev_only_secret_key_base_change_me_for_production_use_only_local
+      RAILS_MAX_THREADS: 5
+    volumes:
+      - .:/app
+      - bundle:/usr/local/bundle
+
 volumes:
   pgdata:
   bundle:

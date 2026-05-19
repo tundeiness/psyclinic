@@ -7,6 +7,8 @@ class TherapistProfile < ApplicationRecord
   has_many :therapist_specializations, dependent: :destroy
   has_many :specializations, through: :therapist_specializations
 
+  has_many :client_notes, dependent: :destroy
+
   scope :active, -> { where(active: true) }
 
   delegate :full_name, :email, to: :user
@@ -19,5 +21,15 @@ class TherapistProfile < ApplicationRecord
       .where(appointments: { therapist_profile_id: id })
       .where.not(appointments: { status: :cancelled })
       .distinct
+  end
+
+  # True if the given client has booked (non-cancelled) with this
+  # therapist. Single source of truth for "may this therapist see /
+  # note this client" — reused by Ability and controllers.
+  def has_client?(client_profile_id)
+    Appointment
+      .where(client_profile_id: client_profile_id, therapist_profile_id: id)
+      .where.not(status: :cancelled)
+      .exists?
   end
 end

@@ -57,7 +57,10 @@ Rails.application.routes.draw do
 
       # --- Therapist surface ---
       namespace :therapist do
-        resources :clients, only: %i[index show]
+        resources :clients, only: %i[index show] do
+          resources :notes, only: %i[index create],
+            controller: "client_notes"
+        end
         resources :availability_slots, only: %i[index create update destroy]
         resources :appointments, only: %i[index show update]
       end

@@ -75,4 +75,9 @@ Rails.application.routes.draw do
   end
 
   get "up", to: "rails/health#show", as: :rails_health_check
+
+  # Unknown API routes -> consistent 404 JSON (not Rails' HTML page).
+  # Scoped to /api so Active Storage (/rails/...) and /up are unaffected.
+  # Declared last so it only catches genuinely unmatched API paths.
+  match "/api/*unmatched", to: "application#route_not_found", via: :all
 end

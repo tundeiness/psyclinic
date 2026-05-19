@@ -63,6 +63,9 @@ services:
       DEVISE_JWT_SECRET_KEY: dev_only_insecure_jwt_secret_change_me_please_32chars_min
       SECRET_KEY_BASE: dev_only_secret_key_base_change_me_for_production_use_only_local
       RAILS_MAX_THREADS: 5
+      # Seeding is the web service's responsibility; the scheduler should
+      # not seed (avoids noisy logs and a race with web on first boot).
+      SEED_ON_BOOT: "false"
     volumes:
       - .:/app
       - bundle:/usr/local/bundle

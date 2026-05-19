@@ -67,4 +67,32 @@ else
   puts "  client already exists"
 end
 
+# Demo data: one approved slot ~36h out, plus a paid, booked appointment
+# on it — so the admin dashboard shows inflows/calendar and the reminder
+# task has something to find. Idempotent: only created once.
+if client.persisted? && therapist.persisted?
+  tp = therapist.therapist_profile
+  cp = client.client_profile
+
+  if AvailabilitySlot.where(therapist_profile: tp).none?
+    slot = AvailabilitySlot.create!(
+      therapist_profile: tp,
+      starts_at: 36.hours.from_now,
+      ends_at: 36.hours.from_now + 1.hour,
+      status: :approved
+    )
+    booking = BookAppointment.call(
+      client_profile: cp, availability_slot_id: slot.id, reason: "Initial consultation"
+    )
+    if booking.success?
+      ConfirmPayment.call(payment: booking.payment)
+      puts "  created demo paid appointment (~36h out) for reminder/dashboard demo"
+    else
+      puts "  demo appointment skipped: #{booking.error}"
+    end
+  else
+    puts "  demo slot already present"
+  end
+end
+
 puts "Done."

@@ -93,6 +93,33 @@ if client.persisted? && therapist.persisted?
   else
     puts "  demo slot already present"
   end
+
+  # Free, unbooked approved slots so the client booking flow can be
+  # exercised without a therapist first creating availability. Spread
+  # over the next 10 days at a couple of times each day. Idempotent:
+  # only created if there are no future unbooked slots already.
+  future_free = AvailabilitySlot
+                  .where(therapist_profile: tp)
+                  .where("starts_at > ?", 2.days.from_now)
+                  .count
+  if future_free.zero?
+    created = 0
+    (3..12).each do |day_offset|
+      [10, 14].each do |hour|
+        starts = day_offset.days.from_now.change(hour: hour, min: 0)
+        AvailabilitySlot.create!(
+          therapist_profile: tp,
+          starts_at: starts,
+          ends_at: starts + 1.hour,
+          status: :approved
+        )
+        created += 1
+      end
+    end
+    puts "  created #{created} free bookable demo slots (next ~2 weeks)"
+  else
+    puts "  free demo slots already present"
+  end
 end
 
 puts "Done."

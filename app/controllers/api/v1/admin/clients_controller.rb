@@ -4,12 +4,12 @@ module Api
       class ClientsController < BaseController
         def index
           authorize! :read, ClientProfile
-          clients = ClientProfile.includes(:user, :therapist_profile).order(created_at: :desc)
+          clients = ClientProfile.includes(:user).order(created_at: :desc)
           render json: { clients: clients.map { |c| ClientProfileSerializer.call(c) } }
         end
 
         def show
-          client = ClientProfile.includes(:user, :therapist_profile).find(params[:id])
+          client = ClientProfile.includes(:user).find(params[:id])
           authorize! :read, client
           render json: { client: ClientProfileSerializer.call(client) }
         end

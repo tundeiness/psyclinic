@@ -38,7 +38,31 @@ module Api
           render json: { message: "Therapist removed" }, status: :ok
         end
 
+        # Promote a therapist to co-admin. Only a true admin (not a
+        # co-admin) may do this.
+        def promote_co_admin
+          return forbid_non_admin unless current_user&.admin?
+
+          tp = TherapistProfile.find(params[:id])
+          tp.update!(co_admin: true)
+          render json: { therapist: TherapistProfileSerializer.call(tp) }
+        end
+
+        # Remove co-admin powers. Admin-only.
+        def demote_co_admin
+          return forbid_non_admin unless current_user&.admin?
+
+          tp = TherapistProfile.find(params[:id])
+          tp.update!(co_admin: false)
+          render json: { therapist: TherapistProfileSerializer.call(tp) }
+        end
+
         private
+
+        def forbid_non_admin
+          render json: { error: "Forbidden", code: "forbidden" },
+            status: :forbidden
+        end
 
         def therapist_user_params
           params.require(:therapist).permit(
@@ -50,7 +74,10 @@ module Api
         def profile_params
           return {} unless params[:therapist].present?
 
-          params.require(:therapist).permit(:bio, :license_number).to_h
+          params.require(:therapist).permit(
+            :bio, :license_number, :headline, :years_experience,
+            :hourly_rate_cents
+          ).to_h
         end
       end
     end

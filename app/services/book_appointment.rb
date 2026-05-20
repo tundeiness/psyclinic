@@ -31,6 +31,14 @@ class BookAppointment
       raise BookingError, "Slot is not available" unless slot.approved?
       raise BookingError, "Slot is already booked" if slot.booked?
 
+      # A client's FIRST-EVER appointment (any therapist) is free.
+      # Every subsequent booking charges the practice-wide flat rate.
+      had_prior = Appointment
+        .where(client_profile_id: @client_profile.id)
+        .where.not(status: :cancelled)
+        .exists?
+      rate = had_prior ? AppSetting.current.flat_rate_cents.to_i : 0
+
       appointment = Appointment.new(
         client_profile: @client_profile,
         therapist_profile_id: slot.therapist_profile_id,
@@ -45,7 +53,7 @@ class BookAppointment
       payment = Payment.create!(
         appointment: appointment,
         client_profile: @client_profile,
-        amount_cents: slot.therapist_profile.hourly_rate_cents.to_i,
+        amount_cents: rate,
         currency: "USD",
         status: :pending
       )

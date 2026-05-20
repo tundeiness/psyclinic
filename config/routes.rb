@@ -43,8 +43,15 @@ Rails.application.routes.draw do
             patch :reject
           end
         end
+        get   "settings", to: "settings#show"
+        patch "settings", to: "settings#update"
         resources :clients, only: %i[index show destroy]
-        resources :therapists, only: %i[index show create destroy]
+        resources :therapists, only: %i[index show create destroy] do
+          member do
+            patch :promote_co_admin
+            patch :demote_co_admin
+          end
+        end
         resources :specializations, only: %i[index create destroy]
         resources :therapist_specializations, only: %i[create destroy]
         resources :availability_slots, only: %i[index update] do

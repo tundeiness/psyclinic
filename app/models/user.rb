@@ -35,6 +35,13 @@ class User < ApplicationRecord
     "#{first_name} #{last_name}".strip
   end
 
+  # A therapist whom the admin has promoted to co-admin. Co-admins keep
+  # their therapist role but gain admin-like management powers (see
+  # Ability). They can never remove the admin or manage co-admins.
+  def co_admin?
+    therapist? && therapist_profile&.co_admin == true
+  end
+
   # Devise hook: block login until the account is approved. Returning
   # false during authentication yields an :inactive failure.
   def active_for_authentication?

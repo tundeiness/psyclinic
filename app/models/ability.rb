@@ -4,6 +4,15 @@ class Ability
   def initialize(user)
     return if user.blank?
 
+    # Co-admin is a therapist with elevated powers — check before the
+    # role switch so they get the management surface, plus their normal
+    # therapist abilities.
+    if user.co_admin?
+      co_admin_abilities(user)
+      therapist_abilities(user)
+      return
+    end
+
     case user.role
     when "admin"
       admin_abilities
@@ -16,8 +25,22 @@ class Ability
 
   private
 
+  # Co-admin: can manage clients, therapists and applications, but
+  # CANNOT manage admins or promote/remove co-admins (those are guarded
+  # in the controllers as admin-only). Co-admins are never role: admin.
+  def co_admin_abilities(_user)
+    can :access, :admin_panel
+    can :manage, ClientProfile
+    can :manage, TherapistProfile
+    can :read, Appointment
+    can %i[read update approve reject], AvailabilitySlot
+    # Review/approve client & therapist applications, but not admins.
+    can %i[read update], User, role: %w[client therapist]
+  end
+
   # Head-Therapist: full management surface.
   def admin_abilities
+    can :access, :admin_panel
     can :manage, User
     can :manage, ClientProfile
     can :manage, TherapistProfile

@@ -3,7 +3,9 @@ module Api
     module Admin
       class DashboardController < BaseController
         def show
-          authorize! :manage, User
+          # admin + co-admin only; explicit ability avoids the
+          # block-ability class-check leak that resource gates have.
+          authorize! :access, :admin_panel
 
           render json: {
             pending_applications: pending_applications,

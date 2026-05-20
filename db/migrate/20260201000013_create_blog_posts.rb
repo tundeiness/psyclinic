@@ -13,6 +13,5 @@ class CreateBlogPosts < ActiveRecord::Migration[7.1]
     end
 
     add_index :blog_posts, %i[status published_at]
-    add_index :blog_posts, :author_id
   end
 end

@@ -52,7 +52,18 @@ RSpec.describe "Increment 5a: welcome, dashboard, reminders" do
 
       tp = create(:user, :therapist).therapist_profile
       tp.update!(hourly_rate_cents: 5000)
+      AppSetting.current.update!(flat_rate_cents: 5000)
       cp = create(:user, :client).client_profile
+
+      # Burn the client's free first session so the next booking is paid
+      # under the first-free-then-flat-rate rule. Insert directly to
+      # bypass slot/booking validations.
+      prior_slot = AvailabilitySlot.create!(therapist_profile: tp,
+        starts_at: 4.days.from_now, ends_at: 4.days.from_now + 1.hour,
+        status: :approved)
+      Appointment.new(client_profile: cp, therapist_profile_id: tp.id,
+        availability_slot: prior_slot, status: :booked).save!(validate: false)
+
       slot = AvailabilitySlot.create!(therapist_profile: tp,
         starts_at: 2.days.from_now, ends_at: 2.days.from_now + 1.hour,
         status: :approved)

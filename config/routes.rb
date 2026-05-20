@@ -29,9 +29,13 @@ Rails.application.routes.draw do
       post   "me/documents",     to: "documents#create"
       delete "me/documents/:id", to: "documents#destroy"
 
+      # Blog posts authoring (auth required; CanCanCan gates each action).
+      resources :blog_posts, only: %i[index show create update destroy]
+
       # --- Public (unauthenticated) welcome page ---
       namespace :public do
         resources :therapists, only: %i[index show]
+        resources :blog_posts, only: %i[index show]
       end
 
       # --- Admin (Head-Therapist) management surface ---

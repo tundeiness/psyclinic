@@ -15,6 +15,7 @@ class User < ApplicationRecord
   has_one :therapist_profile, dependent: :destroy
   has_one :client_profile, dependent: :destroy
   has_many :notifications, dependent: :destroy
+  has_many :blog_posts, foreign_key: :author_id, dependent: :destroy
 
   has_one_attached :avatar
   has_many_attached :documents

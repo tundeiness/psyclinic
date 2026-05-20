@@ -36,6 +36,8 @@ class Ability
     can %i[read update approve reject], AvailabilitySlot
     # Review/approve client & therapist applications, but not admins.
     can %i[read update], User, role: %w[client therapist]
+    # Co-admin can also moderate blog posts.
+    can :manage, BlogPost
   end
 
   # Head-Therapist: full management surface.
@@ -49,6 +51,8 @@ class Ability
     # Admin approves/rejects/sees slots but does not author them.
     can %i[read update approve reject], AvailabilitySlot
     can :read, Appointment
+    # Blog moderation: admin can read/edit/delete any post.
+    can :manage, BlogPost
   end
 
   def therapist_abilities(user)
@@ -78,6 +82,11 @@ class Ability
     end
 
     can :read, TherapistProfile, id: tp.id
+
+    # Therapist authors blog posts. They can create new ones, and
+    # read/update/destroy their own.
+    can :create, BlogPost
+    can %i[read update destroy], BlogPost, author_id: user.id
   end
 
   def client_abilities(user)

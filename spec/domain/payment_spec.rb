@@ -10,6 +10,24 @@ RSpec.describe "Payment + booking flow" do
 
   before do
     tp.update!(hourly_rate_cents: 9_000)
+    AppSetting.current.update!(flat_rate_cents: 9_000)
+    # These specs exercise PAYMENT mechanics, so the client must be past
+    # their free first session. Insert a prior completed appointment
+    # directly (bypassing BookAppointment) so subsequent bookings in
+    # this spec take the paid path. We use a dedicated slot so it does
+    # not collide with `make_slot` below.
+    prior_slot = AvailabilitySlot.create!(
+      therapist_profile: tp,
+      starts_at: 5.days.from_now,
+      ends_at: 5.days.from_now + 1.hour,
+      status: :approved
+    )
+    Appointment.new(
+      client_profile: cp,
+      therapist_profile_id: tp.id,
+      availability_slot: prior_slot,
+      status: :booked
+    ).save!(validate: false)
     ActionMailer::Base.deliveries.clear
   end
 

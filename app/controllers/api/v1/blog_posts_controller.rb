@@ -66,7 +66,18 @@ module Api
             id: p.author_id,
             full_name: p.author.full_name,
             role: p.author.role
-          }
+          },
+          images: p.blog_images.ordered.map { |img| image_json(img) }
+        }
+      end
+
+      def image_json(img)
+        {
+          id: img.id,
+          alt: img.alt,
+          position: img.position,
+          url: img.file.attached? ? Rails.application.routes.url_helpers
+            .rails_blob_path(img.file, only_path: true) : nil
         }
       end
 

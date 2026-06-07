@@ -30,7 +30,10 @@ Rails.application.routes.draw do
       delete "me/documents/:id", to: "documents#destroy"
 
       # Blog posts authoring (auth required; CanCanCan gates each action).
-      resources :blog_posts, only: %i[index show create update destroy]
+      resources :blog_posts, only: %i[index show create update destroy] do
+        resources :images, only: %i[create destroy],
+                  controller: "blog_images"
+      end
 
       # --- Public (unauthenticated) welcome page ---
       namespace :public do
@@ -68,10 +71,7 @@ Rails.application.routes.draw do
 
       # --- Therapist surface ---
       namespace :therapist do
-        resources :clients, only: %i[index show] do
-          resources :notes, only: %i[index create],
-            controller: "client_notes"
-        end
+        resources :clients, only: %i[index show]
         resources :availability_slots, only: %i[index create update destroy]
         resources :appointments, only: %i[index show update]
       end

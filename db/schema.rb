@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_01_000013) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -80,6 +80,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000013) do
     t.check_constraint "ends_at > starts_at", name: "chk_slot_time_order"
   end
 
+  create_table "blog_images", force: :cascade do |t|
+    t.bigint "blog_post_id", null: false
+    t.string "alt", default: ""
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blog_post_id", "position"], name: "index_blog_images_on_blog_post_id_and_position"
+    t.index ["blog_post_id"], name: "index_blog_images_on_blog_post_id"
+  end
+
   create_table "blog_posts", force: :cascade do |t|
     t.bigint "author_id", null: false
     t.string "title", null: false
@@ -92,17 +102,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000013) do
     t.index ["status", "published_at"], name: "index_blog_posts_on_status_and_published_at"
   end
 
-  create_table "client_notes", force: :cascade do |t|
-    t.bigint "therapist_profile_id", null: false
-    t.bigint "client_profile_id", null: false
-    t.text "body", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["client_profile_id"], name: "index_client_notes_on_client_profile_id"
-    t.index ["therapist_profile_id", "client_profile_id", "created_at"], name: "idx_client_notes_therapist_client_time"
-    t.index ["therapist_profile_id"], name: "index_client_notes_on_therapist_profile_id"
-  end
-
   create_table "client_profiles", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.date "date_of_birth"
@@ -110,6 +109,124 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000013) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_client_profiles_on_user_id", unique: true
+  end
+
+  create_table "dass_assessments", force: :cascade do |t|
+    t.bigint "client_profile_id", null: false
+    t.bigint "appointment_id"
+    t.bigint "author_id", null: false
+    t.date "assessment_date", null: false
+    t.integer "item_1"
+    t.integer "item_2"
+    t.integer "item_3"
+    t.integer "item_4"
+    t.integer "item_5"
+    t.integer "item_6"
+    t.integer "item_7"
+    t.integer "item_8"
+    t.integer "item_9"
+    t.integer "item_10"
+    t.integer "item_11"
+    t.integer "item_12"
+    t.integer "item_13"
+    t.integer "item_14"
+    t.integer "item_15"
+    t.integer "item_16"
+    t.integer "item_17"
+    t.integer "item_18"
+    t.integer "item_19"
+    t.integer "item_20"
+    t.integer "item_21"
+    t.integer "item_22"
+    t.integer "item_23"
+    t.integer "item_24"
+    t.integer "item_25"
+    t.integer "item_26"
+    t.integer "item_27"
+    t.integer "item_28"
+    t.integer "item_29"
+    t.integer "item_30"
+    t.integer "item_31"
+    t.integer "item_32"
+    t.integer "item_33"
+    t.integer "item_34"
+    t.integer "item_35"
+    t.integer "item_36"
+    t.integer "item_37"
+    t.integer "item_38"
+    t.integer "item_39"
+    t.integer "item_40"
+    t.integer "item_41"
+    t.integer "item_42"
+    t.integer "depression_score"
+    t.integer "anxiety_score"
+    t.integer "stress_score"
+    t.string "depression_severity"
+    t.string "anxiety_severity"
+    t.string "stress_severity"
+    t.datetime "signed_at"
+    t.bigint "signed_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["appointment_id"], name: "index_dass_assessments_on_appointment_id"
+    t.index ["author_id"], name: "index_dass_assessments_on_author_id"
+    t.index ["client_profile_id"], name: "index_dass_assessments_on_client_profile_id"
+    t.index ["signed_by_id"], name: "index_dass_assessments_on_signed_by_id"
+  end
+
+  create_table "intake_forms", force: :cascade do |t|
+    t.bigint "client_profile_id", null: false
+    t.bigint "author_id", null: false
+    t.date "session_date"
+    t.time "session_start_time"
+    t.time "session_end_time"
+    t.string "preferred_address"
+    t.date "date_of_birth"
+    t.integer "age_at_intake"
+    t.string "phone_number"
+    t.string "state_of_origin"
+    t.string "sex"
+    t.string "relationship_status"
+    t.string "gender_identity"
+    t.string "email_address"
+    t.text "home_address"
+    t.string "profession"
+    t.text "work_hours"
+    t.text "religion_spirituality"
+    t.text "referral_source"
+    t.text "presenting_complaint"
+    t.text "therapy_goals"
+    t.boolean "self_harm_history"
+    t.text "self_harm_details"
+    t.string "suicidal_ideations"
+    t.boolean "suicide_plan_present"
+    t.boolean "suicide_means_available"
+    t.boolean "prior_therapy"
+    t.text "prior_therapy_details"
+    t.jsonb "medications", default: [], null: false
+    t.jsonb "history", default: [], null: false
+    t.jsonb "family_tree", default: [], null: false
+    t.jsonb "substance_use", default: [], null: false
+    t.text "living_conditions"
+    t.text "other_concerns"
+    t.boolean "legal_proceedings"
+    t.text "legal_proceedings_details"
+    t.string "legal_proceedings_status"
+    t.string "emergency_contact_name"
+    t.string "emergency_contact_relationship"
+    t.string "emergency_contact_phone"
+    t.text "emergency_contact_address"
+    t.text "other_details"
+    t.text "case_formulation"
+    t.text "provisional_diagnoses"
+    t.text "treatment_plan"
+    t.datetime "signed_at"
+    t.bigint "signed_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_id"], name: "index_intake_forms_on_author_id"
+    t.index ["client_profile_id"], name: "index_intake_forms_on_client_profile_id", unique: true
+    t.index ["signed_by_id"], name: "index_intake_forms_on_signed_by_id"
   end
 
   create_table "jwt_denylist", force: :cascade do |t|
@@ -150,6 +267,47 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000013) do
     t.index ["provider_reference"], name: "index_payments_on_provider_reference"
     t.index ["status"], name: "index_payments_on_status"
     t.check_constraint "amount_cents >= 0", name: "chk_payment_amount_non_negative"
+  end
+
+  create_table "service_plan_notes", force: :cascade do |t|
+    t.bigint "client_profile_id", null: false
+    t.bigint "appointment_id"
+    t.bigint "author_id", null: false
+    t.date "session_date"
+    t.time "session_start_time"
+    t.time "session_end_time"
+    t.text "review"
+    t.text "addressed_and_plan"
+    t.text "clinician_impression"
+    t.datetime "signed_at"
+    t.bigint "signed_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["appointment_id"], name: "index_service_plan_notes_on_appointment_id"
+    t.index ["author_id"], name: "index_service_plan_notes_on_author_id"
+    t.index ["client_profile_id"], name: "index_service_plan_notes_on_client_profile_id", unique: true
+    t.index ["signed_by_id"], name: "index_service_plan_notes_on_signed_by_id"
+  end
+
+  create_table "session_notes", force: :cascade do |t|
+    t.bigint "appointment_id", null: false
+    t.bigint "client_profile_id", null: false
+    t.bigint "author_id", null: false
+    t.integer "session_number"
+    t.date "session_date"
+    t.time "session_start_time"
+    t.time "session_end_time"
+    t.text "review"
+    t.text "addressed_and_plan"
+    t.text "clinician_impression"
+    t.datetime "signed_at"
+    t.bigint "signed_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["appointment_id"], name: "index_session_notes_on_appointment_id", unique: true
+    t.index ["author_id"], name: "index_session_notes_on_author_id"
+    t.index ["client_profile_id"], name: "index_session_notes_on_client_profile_id"
+    t.index ["signed_by_id"], name: "index_session_notes_on_signed_by_id"
   end
 
   create_table "specializations", force: :cascade do |t|
@@ -204,20 +362,59 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000013) do
     t.index ["status"], name: "index_users_on_status"
   end
 
+  create_table "wheel_of_life_assessments", force: :cascade do |t|
+    t.bigint "client_profile_id", null: false
+    t.bigint "appointment_id"
+    t.bigint "author_id", null: false
+    t.date "assessment_date", null: false
+    t.jsonb "scores", default: {}, null: false
+    t.jsonb "totals", default: {}, null: false
+    t.text "focus_area"
+    t.text "current_state"
+    t.text "whats_missing"
+    t.text "what_to_create"
+    t.datetime "signed_at"
+    t.bigint "signed_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["appointment_id"], name: "index_wheel_of_life_assessments_on_appointment_id"
+    t.index ["author_id"], name: "index_wheel_of_life_assessments_on_author_id"
+    t.index ["client_profile_id"], name: "index_wheel_of_life_assessments_on_client_profile_id"
+    t.index ["signed_by_id"], name: "index_wheel_of_life_assessments_on_signed_by_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "appointments", "availability_slots", on_delete: :cascade
   add_foreign_key "appointments", "client_profiles", on_delete: :cascade
   add_foreign_key "appointments", "therapist_profiles", on_delete: :cascade
   add_foreign_key "availability_slots", "therapist_profiles", on_delete: :cascade
+  add_foreign_key "blog_images", "blog_posts", on_delete: :cascade
   add_foreign_key "blog_posts", "users", column: "author_id", on_delete: :cascade
-  add_foreign_key "client_notes", "client_profiles", on_delete: :cascade
-  add_foreign_key "client_notes", "therapist_profiles", on_delete: :cascade
   add_foreign_key "client_profiles", "users", on_delete: :cascade
+  add_foreign_key "dass_assessments", "appointments", on_delete: :nullify
+  add_foreign_key "dass_assessments", "client_profiles", on_delete: :cascade
+  add_foreign_key "dass_assessments", "users", column: "author_id", on_delete: :restrict
+  add_foreign_key "dass_assessments", "users", column: "signed_by_id"
+  add_foreign_key "intake_forms", "client_profiles", on_delete: :cascade
+  add_foreign_key "intake_forms", "users", column: "author_id", on_delete: :restrict
+  add_foreign_key "intake_forms", "users", column: "signed_by_id"
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "payments", "appointments", on_delete: :cascade
   add_foreign_key "payments", "client_profiles", on_delete: :cascade
+  add_foreign_key "service_plan_notes", "appointments", on_delete: :nullify
+  add_foreign_key "service_plan_notes", "client_profiles", on_delete: :cascade
+  add_foreign_key "service_plan_notes", "users", column: "author_id", on_delete: :restrict
+  add_foreign_key "service_plan_notes", "users", column: "signed_by_id"
+  add_foreign_key "session_notes", "appointments", on_delete: :cascade
+  add_foreign_key "session_notes", "client_profiles", on_delete: :cascade
+  add_foreign_key "session_notes", "users", column: "author_id", on_delete: :restrict
+  add_foreign_key "session_notes", "users", column: "signed_by_id"
   add_foreign_key "therapist_profiles", "users", on_delete: :cascade
   add_foreign_key "therapist_specializations", "specializations", on_delete: :cascade
   add_foreign_key "therapist_specializations", "therapist_profiles", on_delete: :cascade
+  add_foreign_key "wheel_of_life_assessments", "appointments", on_delete: :nullify
+  add_foreign_key "wheel_of_life_assessments", "client_profiles", on_delete: :cascade
+  add_foreign_key "wheel_of_life_assessments", "users", column: "author_id", on_delete: :restrict
+  add_foreign_key "wheel_of_life_assessments", "users", column: "signed_by_id"
 end

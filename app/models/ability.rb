@@ -38,6 +38,15 @@ class Ability
     can %i[read update], User, role: %w[client therapist]
     # Co-admin can also moderate blog posts.
     can :manage, BlogPost
+    # Co-admin has clinical oversight: can read all EMR records,
+    # but only write/update for clients they've personally had a
+    # session with. Mirrors how a clinical director might supervise
+    # while still respecting authorship boundaries for new records.
+    can :read, IntakeForm
+    can :read, SessionNote
+    can :read, ServicePlanNote
+    can :read, DassAssessment
+    can :read, WheelOfLifeAssessment
   end
 
   # Head-Therapist: full management surface.
@@ -53,6 +62,14 @@ class Ability
     can :read, Appointment
     # Blog moderation: admin can read/edit/delete any post.
     can :manage, BlogPost
+    # EMR: admin is a clinical role (head therapist). Full manage —
+    # but signed records still become read-only via the Signable
+    # concern at the model layer, regardless of role.
+    can :manage, IntakeForm
+    can :manage, SessionNote
+    can :manage, ServicePlanNote
+    can :manage, DassAssessment
+    can :manage, WheelOfLifeAssessment
   end
 
   def therapist_abilities(user)
@@ -74,11 +91,25 @@ class Ability
     # See and update appointments that belong to them.
     can %i[read update], Appointment, therapist_profile_id: tp.id
 
-    # Therapist-private clinical notes: only for clients who have booked
-    # with this therapist, and only their own notes.
-    can %i[read create], ClientNote do |note|
-      note.therapist_profile_id == tp.id &&
-        tp.has_client?(note.client_profile_id)
+    # EMR forms: a therapist can read/write records for clients they
+    # have appointments with. Once a record is signed it becomes
+    # read-only (enforced by the Signable concern at the model layer);
+    # we still grant `update` here so the controller layer behaves
+    # uniformly — the model rejects writes after signing.
+    can %i[read create update], IntakeForm do |record|
+      tp.has_client?(record.client_profile_id)
+    end
+    can %i[read create update], SessionNote do |record|
+      tp.has_client?(record.client_profile_id)
+    end
+    can %i[read create update], ServicePlanNote do |record|
+      tp.has_client?(record.client_profile_id)
+    end
+    can %i[read create update], DassAssessment do |record|
+      tp.has_client?(record.client_profile_id)
+    end
+    can %i[read create update], WheelOfLifeAssessment do |record|
+      tp.has_client?(record.client_profile_id)
     end
 
     can :read, TherapistProfile, id: tp.id

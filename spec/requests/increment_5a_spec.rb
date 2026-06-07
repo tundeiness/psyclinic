@@ -72,11 +72,17 @@ RSpec.describe "Increment 5a: welcome, dashboard, reminders" do
 
       get "/api/v1/admin/dashboard", headers: auth_header_for(admin)
       expect(response).to have_http_status(:ok)
-      expect(json["counts"]).to include("clients", "therapists", "pending_applications")
+      expect(json["counts"]).to include("clients", "therapists",
+        "pending_applications", "blog_posts", "blog_posts_published")
       expect(json["pending_applications"]).to be_an(Array)
       expect(json.dig("payment_inflows", "total_cents")).to eq(5000)
       expect(json.dig("payment_inflows", "count")).to eq(1)
       expect(json["calendar"]).to include("availability", "appointments")
+      # New widgets — shape only here; deeper assertions live in
+      # dashboard_widgets_spec.rb.
+      expect(json["bookings_by_day"]).to be_an(Array)
+      expect(json["status_breakdown"]).to be_a(Hash)
+      expect(json["top_therapists"]).to be_an(Array)
     end
   end
 

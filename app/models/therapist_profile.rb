@@ -7,7 +7,10 @@ class TherapistProfile < ApplicationRecord
   has_many :therapist_specializations, dependent: :destroy
   has_many :specializations, through: :therapist_specializations
 
-  has_many :client_notes, dependent: :destroy
+  # Therapists author EMR records via the `author` association on
+  # each form (see Signable). No direct has_many here — a therapist
+  # may author records for any client they have a session with, not a
+  # bounded set.
 
   scope :active, -> { where(active: true) }
 

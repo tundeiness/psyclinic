@@ -1,5 +1,6 @@
 class BlogPost < ApplicationRecord
   belongs_to :author, class_name: "User"
+  has_many :blog_images, dependent: :destroy
 
   # Stored as Markdown; rendered safely on the frontend.
   enum :status, { draft: 0, published: 1 }, prefix: true

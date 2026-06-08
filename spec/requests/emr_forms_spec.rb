@@ -7,8 +7,11 @@ RSpec.describe "EMR forms (Phase 1: models + abilities)", type: :model do
   let(:client_user)      { create(:user, :client) }
   let(:client_profile)   { client_user.client_profile }
 
-  # Establish a real appointment between therapist + client so
-  # has_client? returns true. Uses :booked status (non-cancelled).
+  # Establish a real appointment between therapist + client. Uses
+  # :booked status (non-cancelled). Note this only creates the
+  # appointment — it does NOT set current_therapist_id. Tests that
+  # need "this therapist is the client's current therapist" must also
+  # call set_current_therapist.
   def establish_relationship(t, c)
     tp = t.therapist_profile
     slot = AvailabilitySlot.create!(
@@ -23,6 +26,13 @@ RSpec.describe "EMR forms (Phase 1: models + abilities)", type: :model do
       availability_slot: slot,
       status: :booked
     ).save!(validate: false)
+  end
+
+  # Pin this therapist as the client's current treating therapist
+  # (v2 model). Required for ability rules that gate on
+  # current_therapist_id.
+  def set_current_therapist(t, c)
+    c.client_profile.update!(current_therapist: t.therapist_profile)
   end
 
   describe "Signable concern (shared)" do
@@ -59,12 +69,19 @@ RSpec.describe "EMR forms (Phase 1: models + abilities)", type: :model do
     end
   end
 
-  describe "IntakeForm uniqueness" do
-    it "rejects a second intake for the same client" do
+  describe "IntakeForm uniqueness (v2: one per client-per-therapist)" do
+    it "rejects a second intake from the SAME therapist for the same client" do
       IntakeForm.create!(client_profile: client_profile, author: therapist_user)
       dup = IntakeForm.new(client_profile: client_profile, author: therapist_user)
       expect(dup.save).to be(false)
-      expect(dup.errors[:client_profile_id]).to include(/already has an intake form/)
+      expect(dup.errors[:client_profile_id].join).to match(/already has an intake form/)
+    end
+
+    it "allows a different therapist to create their own intake for the same client" do
+      IntakeForm.create!(client_profile: client_profile, author: therapist_user)
+      # After a switch, the new therapist documents their own intake.
+      second = IntakeForm.new(client_profile: client_profile, author: other_therapist)
+      expect(second.save).to be(true)
     end
   end
 
@@ -165,26 +182,85 @@ RSpec.describe "EMR forms (Phase 1: models + abilities)", type: :model do
     end
   end
 
-  describe "Ability — therapist with established relationship" do
-    before { establish_relationship(therapist_user, client_user) }
+  describe "Ability — therapist who is the CURRENT therapist" do
+    before do
+      establish_relationship(therapist_user, client_user)
+      set_current_therapist(therapist_user, client_user)
+    end
 
-    %w[IntakeForm SessionNote ServicePlanNote
-       DassAssessment WheelOfLifeAssessment].each do |klass_name|
-      it "lets the therapist read/create/update #{klass_name} for their client" do
+    %w[IntakeForm SessionNote ServicePlanNote].each do |klass_name|
+      it "lets the current therapist read/create/update #{klass_name}" do
         ability = Ability.new(therapist_user)
         klass = klass_name.constantize
-        record = klass.new(client_profile: client_profile)
+        record = klass.new(client_profile: client_profile, author: therapist_user)
         expect(ability.can?(:read,   record)).to be(true)
         expect(ability.can?(:create, record)).to be(true)
         expect(ability.can?(:update, record)).to be(true)
       end
+    end
+
+    %w[DassAssessment WheelOfLifeAssessment].each do |klass_name|
+      it "lets the current therapist read but NOT write #{klass_name} (client-authored)" do
+        ability = Ability.new(therapist_user)
+        klass = klass_name.constantize
+        record = klass.new(client_profile: client_profile)
+        expect(ability.can?(:read,   record)).to be(true)
+        # Therapist does not author DASS/WoL; the client does.
+        expect(ability.can?(:create, record)).to be(false)
+      end
+    end
+  end
+
+  describe "Ability — therapist who is a FORMER therapist (client switched away)" do
+    let(:past_intake) {
+      IntakeForm.create!(
+        client_profile: client_profile,
+        author: therapist_user,
+        presenting_complaint: "history"
+      )
+    }
+
+    before do
+      establish_relationship(therapist_user, client_user)
+      # Client has since switched: another therapist is current.
+      set_current_therapist(other_therapist, client_user)
+      past_intake # force creation
+    end
+
+    it "lets the former therapist READ records they authored" do
+      ability = Ability.new(therapist_user)
+      expect(ability.can?(:read, past_intake)).to be(true)
+    end
+
+    it "denies the former therapist edit on a record they authored" do
+      ability = Ability.new(therapist_user)
+      expect(ability.can?(:update, past_intake)).to be(false)
+    end
+
+    it "denies the former therapist read on records they did NOT author" do
+      other_intake = IntakeForm.create!(
+        client_profile: client_profile,
+        author: other_therapist,
+        presenting_complaint: "by new therapist"
+      )
+      ability = Ability.new(therapist_user)
+      expect(ability.can?(:read, other_intake)).to be(false)
+    end
+
+    it "denies the former therapist read on DASS/WoL (client data follows client)" do
+      ability = Ability.new(therapist_user)
+      dass = DassAssessment.new(client_profile: client_profile)
+      wol  = WheelOfLifeAssessment.new(client_profile: client_profile)
+      expect(ability.can?(:read, dass)).to be(false)
+      expect(ability.can?(:read, wol)).to be(false)
     end
   end
 
   describe "Ability — therapist with NO relationship to client" do
     it "denies all access to other therapist's clients" do
       establish_relationship(therapist_user, client_user)
-      ability = Ability.new(other_therapist) # not connected
+      set_current_therapist(therapist_user, client_user)
+      ability = Ability.new(other_therapist) # not connected at all
       [IntakeForm, SessionNote, ServicePlanNote,
        DassAssessment, WheelOfLifeAssessment].each do |klass|
         record = klass.new(client_profile: client_profile)
@@ -204,16 +280,30 @@ RSpec.describe "EMR forms (Phase 1: models + abilities)", type: :model do
     end
   end
 
-  describe "Ability — client" do
-    it "cannot read or write any EMR record" do
+  describe "Ability — client (v2: client authors DASS/WoL)" do
+    it "cannot read or write therapist-authored records" do
       ability = Ability.new(client_user)
-      [IntakeForm, SessionNote, ServicePlanNote,
-       DassAssessment, WheelOfLifeAssessment].each do |klass|
+      [IntakeForm, SessionNote, ServicePlanNote].each do |klass|
         record = klass.new(client_profile: client_profile)
         expect(ability.can?(:read,   record)).to be(false)
         expect(ability.can?(:create, record)).to be(false)
-        expect(ability.can?(:update, record)).to be(false)
       end
+    end
+
+    it "can create and read their OWN DASS and Wheel of Life records" do
+      ability = Ability.new(client_user)
+      [DassAssessment, WheelOfLifeAssessment].each do |klass|
+        record = klass.new(client_profile: client_profile)
+        expect(ability.can?(:create, record)).to be(true)
+        expect(ability.can?(:read,   record)).to be(true)
+      end
+    end
+
+    it "cannot read another client's DASS/WoL records" do
+      other_client = create(:user, :client)
+      ability = Ability.new(client_user)
+      foreign_dass = DassAssessment.new(client_profile: other_client.client_profile)
+      expect(ability.can?(:read, foreign_dass)).to be(false)
     end
   end
 end

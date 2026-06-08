@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_01_000017) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -46,6 +46,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
     t.integer "flat_rate_cents", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "assessment_session_price_cents", default: 5000000, null: false
+    t.integer "block_full_price_cents", default: 30000000, null: false
+    t.integer "block_installment_first_pct", default: 60, null: false
+    t.integer "block_installment_second_pct", default: 40, null: false
   end
 
   create_table "appointments", force: :cascade do |t|
@@ -57,11 +61,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "reminder_sent_at"
+    t.integer "session_kind", default: 0, null: false
+    t.bigint "session_block_id"
     t.index ["availability_slot_id"], name: "idx_one_active_appointment_per_slot", unique: true, where: "(status <> ALL (ARRAY[2, 4]))"
     t.index ["availability_slot_id"], name: "index_appointments_on_availability_slot_id"
     t.index ["client_profile_id", "status"], name: "index_appointments_on_client_profile_id_and_status"
     t.index ["client_profile_id"], name: "index_appointments_on_client_profile_id"
     t.index ["reminder_sent_at"], name: "index_appointments_on_reminder_sent_at"
+    t.index ["session_block_id"], name: "index_appointments_on_session_block_id"
+    t.index ["session_kind"], name: "index_appointments_on_session_kind"
     t.index ["therapist_profile_id", "status"], name: "index_appointments_on_therapist_profile_id_and_status"
     t.index ["therapist_profile_id"], name: "index_appointments_on_therapist_profile_id"
   end
@@ -108,6 +116,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "current_therapist_id"
+    t.index ["current_therapist_id"], name: "index_client_profiles_on_current_therapist_id"
     t.index ["user_id"], name: "index_client_profiles_on_user_id", unique: true
   end
 
@@ -225,7 +235,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["author_id"], name: "index_intake_forms_on_author_id"
-    t.index ["client_profile_id"], name: "index_intake_forms_on_client_profile_id", unique: true
+    t.index ["client_profile_id", "author_id"], name: "idx_unique_intake_per_client_therapist", unique: true
+    t.index ["client_profile_id"], name: "index_intake_forms_on_client_profile_id"
     t.index ["signed_by_id"], name: "index_intake_forms_on_signed_by_id"
   end
 
@@ -287,6 +298,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
     t.index ["author_id"], name: "index_service_plan_notes_on_author_id"
     t.index ["client_profile_id"], name: "index_service_plan_notes_on_client_profile_id", unique: true
     t.index ["signed_by_id"], name: "index_service_plan_notes_on_signed_by_id"
+  end
+
+  create_table "session_blocks", force: :cascade do |t|
+    t.bigint "client_profile_id", null: false
+    t.bigint "therapist_profile_id", null: false
+    t.datetime "purchased_at", null: false
+    t.integer "sessions_total", default: 6, null: false
+    t.integer "sessions_used", default: 0, null: false
+    t.integer "payment_mode", default: 0, null: false
+    t.bigint "first_payment_id"
+    t.bigint "second_payment_id"
+    t.integer "status", default: 0, null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_profile_id", "status"], name: "index_session_blocks_on_client_profile_id_and_status"
+    t.index ["client_profile_id"], name: "index_session_blocks_on_client_profile_id"
+    t.index ["first_payment_id"], name: "index_session_blocks_on_first_payment_id"
+    t.index ["second_payment_id"], name: "index_session_blocks_on_second_payment_id"
+    t.index ["therapist_profile_id", "status"], name: "index_session_blocks_on_therapist_profile_id_and_status"
+    t.index ["therapist_profile_id"], name: "index_session_blocks_on_therapist_profile_id"
   end
 
   create_table "session_notes", force: :cascade do |t|
@@ -387,10 +419,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "appointments", "availability_slots", on_delete: :cascade
   add_foreign_key "appointments", "client_profiles", on_delete: :cascade
+  add_foreign_key "appointments", "session_blocks", on_delete: :nullify
   add_foreign_key "appointments", "therapist_profiles", on_delete: :cascade
   add_foreign_key "availability_slots", "therapist_profiles", on_delete: :cascade
   add_foreign_key "blog_images", "blog_posts", on_delete: :cascade
   add_foreign_key "blog_posts", "users", column: "author_id", on_delete: :cascade
+  add_foreign_key "client_profiles", "therapist_profiles", column: "current_therapist_id", on_delete: :nullify
   add_foreign_key "client_profiles", "users", on_delete: :cascade
   add_foreign_key "dass_assessments", "appointments", on_delete: :nullify
   add_foreign_key "dass_assessments", "client_profiles", on_delete: :cascade
@@ -406,6 +440,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000015) do
   add_foreign_key "service_plan_notes", "client_profiles", on_delete: :cascade
   add_foreign_key "service_plan_notes", "users", column: "author_id", on_delete: :restrict
   add_foreign_key "service_plan_notes", "users", column: "signed_by_id"
+  add_foreign_key "session_blocks", "client_profiles", on_delete: :cascade
+  add_foreign_key "session_blocks", "payments", column: "first_payment_id", on_delete: :nullify
+  add_foreign_key "session_blocks", "payments", column: "second_payment_id", on_delete: :nullify
+  add_foreign_key "session_blocks", "therapist_profiles", on_delete: :restrict
   add_foreign_key "session_notes", "appointments", on_delete: :cascade
   add_foreign_key "session_notes", "client_profiles", on_delete: :cascade
   add_foreign_key "session_notes", "users", column: "author_id", on_delete: :restrict

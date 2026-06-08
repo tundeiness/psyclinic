@@ -4,6 +4,11 @@ class TherapistProfile < ApplicationRecord
   has_many :availability_slots, dependent: :destroy
   has_many :appointments, dependent: :destroy
 
+  # v2: blocks of 6 sessions sold to clients for use with this
+  # therapist. Restrict-on-delete (via the FK) keeps a therapist
+  # with active blocks from being soft-deleted accidentally.
+  has_many :session_blocks, dependent: :restrict_with_exception
+
   has_many :therapist_specializations, dependent: :destroy
   has_many :specializations, through: :therapist_specializations
 

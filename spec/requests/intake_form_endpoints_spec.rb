@@ -25,8 +25,17 @@ RSpec.describe "Intake form endpoints", type: :request do
     ).save!(validate: false)
   end
 
+  # v2 model: the therapist must also be the client's CURRENT
+  # therapist for the EMR ability rules to grant access.
+  def set_current_therapist(t, c)
+    c.client_profile.update!(current_therapist: t.therapist_profile)
+  end
+
   describe "GET /api/v1/clients/:client_id/intake_form" do
-    before { establish_relationship(therapist_user, client_user) }
+    before do
+      establish_relationship(therapist_user, client_user)
+      set_current_therapist(therapist_user, client_user)
+    end
 
     it "404s when no intake form exists yet" do
       get "/api/v1/clients/#{client_profile.id}/intake_form",
@@ -76,7 +85,10 @@ RSpec.describe "Intake form endpoints", type: :request do
   end
 
   describe "POST /api/v1/clients/:client_id/intake_form" do
-    before { establish_relationship(therapist_user, client_user) }
+    before do
+      establish_relationship(therapist_user, client_user)
+      set_current_therapist(therapist_user, client_user)
+    end
 
     it "creates a new intake with structured + JSONB fields" do
       payload = {
@@ -116,6 +128,7 @@ RSpec.describe "Intake form endpoints", type: :request do
   describe "PATCH /api/v1/clients/:client_id/intake_form" do
     let!(:intake) {
       establish_relationship(therapist_user, client_user)
+      set_current_therapist(therapist_user, client_user)
       IntakeForm.create!(
         client_profile: client_profile,
         author: therapist_user,
@@ -146,6 +159,7 @@ RSpec.describe "Intake form endpoints", type: :request do
   describe "POST /api/v1/clients/:client_id/intake_form/sign" do
     let!(:intake) {
       establish_relationship(therapist_user, client_user)
+      set_current_therapist(therapist_user, client_user)
       IntakeForm.create!(client_profile: client_profile, author: therapist_user)
     }
 

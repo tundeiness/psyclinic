@@ -67,6 +67,15 @@ else
   puts "  client already exists"
 end
 
+# v2 dev convenience: pin Jane as John's current therapist so the EMR
+# ability rules grant access in development. In production this gets
+# set by the booking flow (Phase 5+). Idempotent — overwrites only if
+# unset to avoid clobbering manual test state.
+if client.client_profile && client.client_profile.current_therapist_id.nil?
+  client.client_profile.update!(current_therapist: therapist.therapist_profile)
+  puts "  pinned John -> Jane as current therapist (v2 dev seed)"
+end
+
 # Demo data: one approved slot ~36h out, plus a paid, booked appointment
 # on it — so the admin dashboard shows inflows/calendar and the reminder
 # task has something to find. Idempotent: only created once.

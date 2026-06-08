@@ -4,15 +4,23 @@ module Api
       class SettingsController < BaseController
         before_action :require_real_admin
 
+        SETTING_KEYS = %i[
+          flat_rate_cents
+          assessment_session_price_cents
+          block_full_price_cents
+          block_installment_first_pct
+          block_installment_second_pct
+        ].freeze
+
         def show
-          s = AppSetting.current
-          render json: { settings: { flat_rate_cents: s.flat_rate_cents } }
+          render json: { settings: serialize_settings(AppSetting.current) }
         end
 
         def update
           s = AppSetting.current
-          if s.update(flat_rate_cents: params.dig(:settings, :flat_rate_cents))
-            render json: { settings: { flat_rate_cents: s.flat_rate_cents } }
+          permitted = params.require(:settings).permit(*SETTING_KEYS)
+          if s.update(permitted)
+            render json: { settings: serialize_settings(s) }
           else
             render json: {
               error: "Invalid settings",
@@ -31,6 +39,18 @@ module Api
 
           render json: { error: "Forbidden", code: "forbidden" },
             status: :forbidden
+        end
+
+        def serialize_settings(s)
+          {
+            flat_rate_cents:                  s.flat_rate_cents,
+            assessment_session_price_cents:   s.assessment_session_price_cents,
+            block_full_price_cents:           s.block_full_price_cents,
+            block_installment_first_pct:      s.block_installment_first_pct,
+            block_installment_second_pct:     s.block_installment_second_pct,
+            installment_first_amount_cents:   s.installment_first_amount_cents,
+            installment_second_amount_cents:  s.installment_second_amount_cents
+          }
         end
       end
     end

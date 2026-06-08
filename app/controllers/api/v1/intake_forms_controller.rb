@@ -7,8 +7,12 @@ module Api
 
       # GET /api/v1/clients/:client_id/intake_form
       def show
+        # Authorize against a placeholder with NO author so the
+        # "former therapist can read records they authored" rule
+        # doesn't trivially pass for whoever is asking. The real
+        # record's author_id is checked only when the record exists.
+        authorize! :read, (@intake || read_placeholder)
         return render_not_found unless @intake
-        authorize! :read, @intake
         render json: { intake_form: serialize(@intake) }
       end
 
@@ -28,8 +32,12 @@ module Api
 
       # PATCH /api/v1/clients/:client_id/intake_form
       def update
+        # Write placeholder carries current_user as author so the
+        # current-therapist rule can evaluate. The "I authored it"
+        # read shortcut doesn't apply to update — only current
+        # therapist can write — so we don't have the same trap.
+        authorize! :update, (@intake || write_placeholder)
         return render_not_found unless @intake
-        authorize! :update, @intake
         if @intake.update(intake_params)
           render json: { intake_form: serialize(@intake) }
         else
@@ -39,8 +47,8 @@ module Api
 
       # POST /api/v1/clients/:client_id/intake_form/sign
       def sign
+        authorize! :update, (@intake || write_placeholder)
         return render_not_found unless @intake
-        authorize! :update, @intake
         if @intake.signed?
           return render json: {
             error: { code: :already_signed, message: "Already signed" }
@@ -52,13 +60,47 @@ module Api
 
       private
 
+      def read_placeholder
+        # Author is nil so the author-match rule cannot accidentally
+        # pass for whoever is asking. Used only for authorization.
+        IntakeForm.new(client_profile: @client_profile, author: nil)
+      end
+
+      def write_placeholder
+        # For write checks: current_user is the real would-be author.
+        IntakeForm.new(client_profile: @client_profile, author: current_user)
+      end
+
       def load_client_profile
         @client_profile = ClientProfile.find_by(id: params[:client_id])
         render_not_found unless @client_profile
       end
 
       def load_or_build_intake
-        @intake = @client_profile.intake_form
+        # Each therapist gets their own intake form per relationship
+        # with the client (post-v2 redesign). The lookup picks the
+        # "most relevant" intake for the current user:
+        #   - therapist: their own intake (the one they authored)
+        #   - admin: the intake authored by the client's CURRENT
+        #     therapist (most clinically relevant); falls back to any
+        #     intake if there isn't one.
+        # To view a specific intake by ID (e.g., admin looking at a
+        # past therapist's intake) the record-release flow / a
+        # dedicated route is the right tool (later phase).
+        @intake =
+          if current_user.role == "admin"
+            current_id = @client_profile.current_therapist_id
+            if current_id
+              current_therapist_user_id =
+                TherapistProfile.find(current_id).user_id
+              @client_profile.intake_forms.find_by(author_id: current_therapist_user_id) ||
+                @client_profile.intake_forms.order(created_at: :desc).first
+            else
+              @client_profile.intake_forms.order(created_at: :desc).first
+            end
+          else
+            @client_profile.intake_form_for(current_user)
+          end
       end
 
       # The JSONB sections need explicit array-of-hash permitting; Rails

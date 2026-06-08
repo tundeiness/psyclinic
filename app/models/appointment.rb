@@ -2,6 +2,7 @@ class Appointment < ApplicationRecord
   belongs_to :client_profile
   belongs_to :therapist_profile
   belongs_to :availability_slot
+  belongs_to :session_block, optional: true
 
   # Integers preserved so existing rows keep their meaning. New states
   # appended. pending_payment/booked/completed reserve the slot;
@@ -13,6 +14,12 @@ class Appointment < ApplicationRecord
     pending_payment: 3,
     payment_failed: 4
   }, default: :pending_payment
+
+  # v2 distinction. Default :normal so any existing rows / future
+  # callers that don't set this explicitly behave like the legacy
+  # model. Assessment sessions are individually paid; normal sessions
+  # draw from a SessionBlock.
+  enum :session_kind, { normal: 0, assessment: 1 }, default: :normal
 
   has_one :payment, dependent: :destroy
 

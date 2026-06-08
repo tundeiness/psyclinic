@@ -5,7 +5,10 @@ class IntakeForm < ApplicationRecord
   belongs_to :author, class_name: "User"
 
   validates :client_profile_id,
-    uniqueness: { message: "already has an intake form" }
+    uniqueness: {
+      scope: :author_id,
+      message: "already has an intake form authored by this therapist"
+    }
 
   # JSONB shapes (informational; not enforced at DB level):
   #

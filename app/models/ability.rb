@@ -91,25 +91,51 @@ class Ability
     # See and update appointments that belong to them.
     can %i[read update], Appointment, therapist_profile_id: tp.id
 
-    # EMR forms: a therapist can read/write records for clients they
-    # have appointments with. Once a record is signed it becomes
-    # read-only (enforced by the Signable concern at the model layer);
-    # we still grant `update` here so the controller layer behaves
-    # uniformly — the model rejects writes after signing.
-    can %i[read create update], IntakeForm do |record|
-      tp.has_client?(record.client_profile_id)
+    # EMR forms — v2 authorization model.
+    #
+    # For therapist-authored records (intake, session note, service
+    # plan): the CURRENT treating therapist can read/create/update.
+    # Former therapists (who once treated this client but the client
+    # has since switched) retain READ access to records they
+    # themselves authored — they cannot create new records or edit
+    # existing ones. The Signable concern still locks signed records
+    # at the model layer regardless of role.
+    #
+    # For client-authored records (DASS, Wheel of Life): only the
+    # current therapist can read. Former therapists do not see
+    # assessments the client has submitted, including those submitted
+    # while they were the current therapist — once the relationship
+    # ends, that data goes with the client. (A future record-release
+    # flow lets admins grant explicit access; not yet built.)
+    #
+    # "Current treating therapist" = client_profile.current_therapist_id
+    # equals this therapist's id. Null current_therapist_id means the
+    # client has no current therapist — no therapist has access until
+    # one is assigned (via the booking flow, later phase).
+    is_current_therapist = ->(client_profile_id) {
+      cp = ClientProfile.find_by(id: client_profile_id)
+      cp&.current_therapist_id == tp.id
+    }
+
+    # Therapist-authored records: write only if current; read if
+    # current OR if author.
+    %i[IntakeForm SessionNote ServicePlanNote].each do |klass_sym|
+      klass = klass_sym.to_s.constantize
+      can %i[create update], klass do |record|
+        is_current_therapist.call(record.client_profile_id)
+      end
+      can :read, klass do |record|
+        is_current_therapist.call(record.client_profile_id) ||
+          record.author_id == user.id
+      end
     end
-    can %i[read create update], SessionNote do |record|
-      tp.has_client?(record.client_profile_id)
+
+    # Client-authored records: current therapist reads only.
+    can :read, DassAssessment do |record|
+      is_current_therapist.call(record.client_profile_id)
     end
-    can %i[read create update], ServicePlanNote do |record|
-      tp.has_client?(record.client_profile_id)
-    end
-    can %i[read create update], DassAssessment do |record|
-      tp.has_client?(record.client_profile_id)
-    end
-    can %i[read create update], WheelOfLifeAssessment do |record|
-      tp.has_client?(record.client_profile_id)
+    can :read, WheelOfLifeAssessment do |record|
+      is_current_therapist.call(record.client_profile_id)
     end
 
     can :read, TherapistProfile, id: tp.id
@@ -131,5 +157,12 @@ class Ability
     can :create, Appointment
     can :read, Appointment, client_profile_id: cp.id
     can :destroy, Appointment, client_profile_id: cp.id, status: %w[booked pending_payment]
+
+    # EMR — v2: client fills their own DASS-42 and Wheel of Life on
+    # their dashboard when asked. No signature; submission = locked.
+    # No client access to therapist-authored records (intake, session
+    # note, service plan).
+    can %i[create read], DassAssessment, client_profile_id: cp.id
+    can %i[create read], WheelOfLifeAssessment, client_profile_id: cp.id
   end
 end

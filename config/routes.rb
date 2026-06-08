@@ -76,6 +76,18 @@ Rails.application.routes.draw do
         resources :appointments, only: %i[index show update]
       end
 
+      # --- EMR clinical records (therapist + admin) ---
+      # Mounted outside role namespaces because both therapists (with a
+      # relationship to the client) and admins use the same endpoints.
+      # CanCanCan in the controller decides who can see/edit/sign.
+      # URL shape: /api/v1/clients/:client_id/intake_form
+      scope "clients/:client_id" do
+        # Singular resource — one intake form per client.
+        resource :intake_form, only: %i[show create update], controller: "intake_forms" do
+          post :sign
+        end
+      end
+
       # --- Client surface ---
       namespace :client do
         # Bookable approved slots, optionally filtered by therapist.

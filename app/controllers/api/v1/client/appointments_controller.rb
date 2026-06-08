@@ -24,7 +24,11 @@ module Api
           result = BookAppointment.call(
             client_profile: @cp,
             availability_slot_id: params[:availability_slot_id],
-            reason: params[:reason]
+            reason: params[:reason],
+            # v2: client must declare which kind of session this is.
+            # Defaults to :assessment for backward compat with older
+            # frontend clients — the new frontend will be explicit.
+            session_kind: (params[:session_kind].presence || "assessment").to_sym
           )
 
           if result.success?

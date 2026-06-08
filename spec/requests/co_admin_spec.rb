@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe "Co-admin, flat rate & first-free pricing", type: :request do
+RSpec.describe "Co-admin, flat rate & v2 pricing", type: :request do
   let(:json) { JSON.parse(response.body) }
 
   let(:admin)          { create(:user, :admin) }
@@ -16,28 +16,35 @@ RSpec.describe "Co-admin, flat rate & first-free pricing", type: :request do
     )
   end
 
-  describe "first-ever appointment is free, then flat rate" do
-    before { AppSetting.current.update!(flat_rate_cents: 8000) }
-
-    it "charges 0 for the client's first booking" do
-      r = BookAppointment.call(
-        client_profile: cp, availability_slot_id: slot(2.days.from_now).id
+  describe "v2 assessment session pricing" do
+    before do
+      AppSetting.current.update!(
+        assessment_session_price_cents: 5_000_000  # ₦50,000 in kobo
       )
-      expect(r.success?).to be(true)
-      expect(r.payment.amount_cents).to eq(0)
     end
 
-    it "charges the flat rate on the second booking" do
-      first = BookAppointment.call(
-        client_profile: cp, availability_slot_id: slot(2.days.from_now).id
+    it "charges the assessment session price for an assessment booking" do
+      r = BookAppointment.call(
+        client_profile: cp,
+        availability_slot_id: slot(2.days.from_now).id,
+        session_kind: :assessment
       )
-      ConfirmPayment.call(payment: first.payment)
+      expect(r.success?).to be(true)
+      expect(r.payment.amount_cents).to eq(5_000_000)
+    end
 
-      second = BookAppointment.call(
-        client_profile: cp, availability_slot_id: slot(3.days.from_now).id
+    it "rejects a normal booking before block purchasing lands" do
+      # Phase 5.1: normal sessions require a SessionBlock which Phase 6
+      # introduces. Booking a :normal session must fail cleanly with
+      # a helpful error rather than silently fall back to legacy
+      # flat-rate pricing.
+      r = BookAppointment.call(
+        client_profile: cp,
+        availability_slot_id: slot(2.days.from_now).id,
+        session_kind: :normal
       )
-      expect(second.success?).to be(true)
-      expect(second.payment.amount_cents).to eq(8000)
+      expect(r.success?).to be(false)
+      expect(r.error).to match(/active session block/i)
     end
   end
 

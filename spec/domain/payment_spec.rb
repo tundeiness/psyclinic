@@ -10,12 +10,19 @@ RSpec.describe "Payment + booking flow" do
 
   before do
     tp.update!(hourly_rate_cents: 9_000)
-    AppSetting.current.update!(flat_rate_cents: 9_000)
-    # These specs exercise PAYMENT mechanics, so the client must be past
-    # their free first session. Insert a prior completed appointment
-    # directly (bypassing BookAppointment) so subsequent bookings in
-    # this spec take the paid path. We use a dedicated slot so it does
-    # not collide with `make_slot` below.
+    # v2: assessment sessions use assessment_session_price_cents.
+    # Set it here so the price assertions below match. flat_rate_cents
+    # is unused by the v2 booking path but kept to avoid breaking
+    # legacy code paths that may still read it.
+    AppSetting.current.update!(
+      flat_rate_cents: 9_000,
+      assessment_session_price_cents: 9_000
+    )
+    # Note: pre-v2 these specs needed a prior appointment to bypass the
+    # free-first-session pricing. v2 always charges, so the prior-
+    # appointment workaround is no longer required. Left in place for
+    # backward compat with any tests that might rely on it being a
+    # "second" booking.
     prior_slot = AvailabilitySlot.create!(
       therapist_profile: tp,
       starts_at: 5.days.from_now,
@@ -43,7 +50,7 @@ RSpec.describe "Payment + booking flow" do
   describe "BookAppointment" do
     it "creates a pending_payment appointment and a pending payment intent" do
       slot = make_slot
-      result = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      result = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
 
       expect(result.success?).to be(true)
       expect(result.appointment.status).to eq("pending_payment")
@@ -56,10 +63,10 @@ RSpec.describe "Payment + booking flow" do
 
     it "still prevents double-booking while payment is pending" do
       slot = make_slot
-      BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
 
       other = create(:user, :client).client_profile
-      second = BookAppointment.call(client_profile: other, availability_slot_id: slot.id)
+      second = BookAppointment.call(client_profile: other, availability_slot_id: slot.id, session_kind: :assessment)
       expect(second.success?).to be(false)
       expect(second.error).to match(/already booked/i)
     end
@@ -68,7 +75,7 @@ RSpec.describe "Payment + booking flow" do
   describe "ConfirmPayment success" do
     it "books the appointment, notifies and emails the therapist" do
       slot = make_slot
-      booking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      booking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
 
       perform_enqueued_jobs do
         result = ConfirmPayment.call(payment: booking.payment)
@@ -87,7 +94,7 @@ RSpec.describe "Payment + booking flow" do
   describe "ConfirmPayment failure" do
     it "marks payment failed, releases the slot, no therapist notice" do
       slot = make_slot
-      booking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      booking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
 
       result = ConfirmPayment.call(
         payment: booking.payment,
@@ -101,7 +108,7 @@ RSpec.describe "Payment + booking flow" do
       expect(slot.reload.booked?).to be(false)
       expect(therapist_user.notifications.where(kind: "appointment_booked")).not_to be_exist
 
-      rebooking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      rebooking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
       expect(rebooking.success?).to be(true)
     end
   end

@@ -52,7 +52,10 @@ RSpec.describe "Increment 5a: welcome, dashboard, reminders" do
 
       tp = create(:user, :therapist).therapist_profile
       tp.update!(hourly_rate_cents: 5000)
-      AppSetting.current.update!(flat_rate_cents: 5000)
+      AppSetting.current.update!(
+        flat_rate_cents: 5000,
+        assessment_session_price_cents: 5000
+      )
       cp = create(:user, :client).client_profile
 
       # Burn the client's free first session so the next booking is paid
@@ -67,7 +70,7 @@ RSpec.describe "Increment 5a: welcome, dashboard, reminders" do
       slot = AvailabilitySlot.create!(therapist_profile: tp,
         starts_at: 2.days.from_now, ends_at: 2.days.from_now + 1.hour,
         status: :approved)
-      booking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      booking = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
       ConfirmPayment.call(payment: booking.payment)
 
       get "/api/v1/admin/dashboard", headers: auth_header_for(admin)
@@ -95,7 +98,7 @@ RSpec.describe "Increment 5a: welcome, dashboard, reminders" do
       slot = AvailabilitySlot.create!(therapist_profile: tp,
         starts_at: starts_in.from_now, ends_at: starts_in.from_now + 1.hour,
         status: :approved)
-      b = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      b = BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
       ConfirmPayment.call(payment: b.payment)
       b.appointment.reload
     end
@@ -136,7 +139,7 @@ RSpec.describe "Increment 5a: welcome, dashboard, reminders" do
       slot = AvailabilitySlot.create!(therapist_profile: tp,
         starts_at: 1.day.from_now, ends_at: 1.day.from_now + 1.hour,
         status: :approved)
-      BookAppointment.call(client_profile: cp, availability_slot_id: slot.id)
+      BookAppointment.call(client_profile: cp, availability_slot_id: slot.id, session_kind: :assessment)
       # not confirmed -> still pending_payment
 
       result = SendAppointmentReminders.call

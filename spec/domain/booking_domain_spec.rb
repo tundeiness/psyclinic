@@ -21,7 +21,7 @@ RSpec.describe "Booking domain" do
   describe "BookAppointment" do
     it "books an approved, free slot (no pairing required)" do
       s = make_slot(status: :approved)
-      result = BookAppointment.call(client_profile: cp, availability_slot_id: s.id, reason: "First")
+      result = BookAppointment.call(client_profile: cp, availability_slot_id: s.id, reason: "First", session_kind: :assessment)
       expect(result.success?).to be(true)
       expect(result.appointment).to be_persisted
       expect(s.reload.booked?).to be(true)
@@ -29,23 +29,23 @@ RSpec.describe "Booking domain" do
 
     it "rejects booking an unapproved (proposed) slot" do
       s = make_slot(status: :proposed)
-      result = BookAppointment.call(client_profile: cp, availability_slot_id: s.id)
+      result = BookAppointment.call(client_profile: cp, availability_slot_id: s.id, session_kind: :assessment)
       expect(result.success?).to be(false)
       expect(result.error).to match(/not available/i)
     end
 
     it "rejects booking a missing slot" do
-      result = BookAppointment.call(client_profile: cp, availability_slot_id: -1)
+      result = BookAppointment.call(client_profile: cp, availability_slot_id: -1, session_kind: :assessment)
       expect(result.success?).to be(false)
       expect(result.error).to match(/not found/i)
     end
 
     it "prevents double-booking the same slot" do
       s = make_slot(status: :approved)
-      first = BookAppointment.call(client_profile: cp, availability_slot_id: s.id)
+      first = BookAppointment.call(client_profile: cp, availability_slot_id: s.id, session_kind: :assessment)
       expect(first.success?).to be(true)
 
-      second = BookAppointment.call(client_profile: cp, availability_slot_id: s.id)
+      second = BookAppointment.call(client_profile: cp, availability_slot_id: s.id, session_kind: :assessment)
       expect(second.success?).to be(false)
       expect(second.error).to match(/already booked/i)
     end
@@ -54,7 +54,7 @@ RSpec.describe "Booking domain" do
   describe "TherapistProfile#clients_with_appointments" do
     it "returns clients who have a non-cancelled appointment" do
       s = make_slot(status: :approved)
-      BookAppointment.call(client_profile: cp, availability_slot_id: s.id)
+      BookAppointment.call(client_profile: cp, availability_slot_id: s.id, session_kind: :assessment)
       expect(tp.clients_with_appointments).to include(cp)
     end
 
@@ -91,7 +91,7 @@ RSpec.describe "Booking domain" do
 
     it "lets a therapist read a client who booked them, not a stranger" do
       s = make_slot(status: :approved)
-      BookAppointment.call(client_profile: cp, availability_slot_id: s.id)
+      BookAppointment.call(client_profile: cp, availability_slot_id: s.id, session_kind: :assessment)
       stranger = create(:user, :client).client_profile
 
       ability = Ability.new(therapist_user)

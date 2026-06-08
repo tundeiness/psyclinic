@@ -97,6 +97,24 @@ Rails.application.routes.draw do
           member { post :confirm }
         end
       end
+
+      # --- Stripe webhooks (real Stripe; also receives dev mock events
+      #     when they're dispatched server-side via the mock gateway
+      #     controller below). Unauthenticated; signature-verified.
+      namespace :webhooks do
+        post :stripe, to: "stripe#receive"
+      end
+
+      # --- Dev-only mock checkout simulator. Frontend mock checkout
+      #     page POSTs here with action: succeed | fail. Only routes
+      #     are registered outside production; the controller also
+      #     guards against being hit in production as defense in depth.
+      unless Rails.env.production?
+        namespace :dev do
+          post "mock_gateway/:payment_intent_id/simulate",
+            to: "mock_gateway#simulate"
+        end
+      end
     end
   end
 

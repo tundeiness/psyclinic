@@ -39,6 +39,7 @@ Rails.application.routes.draw do
       namespace :public do
         resources :therapists, only: %i[index show]
         resources :blog_posts, only: %i[index show]
+        get :pricing, to: "pricing#show"
       end
 
       # --- Admin (Head-Therapist) management surface ---
@@ -96,6 +97,8 @@ Rails.application.routes.draw do
         resources :payments, only: %i[show] do
           member { post :confirm }
         end
+        # v2: block purchases.
+        resources :session_blocks, only: %i[index create]
       end
 
       # --- Stripe webhooks (real Stripe; also receives dev mock events

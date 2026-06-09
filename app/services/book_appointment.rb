@@ -47,13 +47,50 @@ class BookAppointment
         when :assessment
           AppSetting.current.assessment_session_price_cents.to_i
         when :normal
-          # Phase 6 implements block-decrement here. For Phase 5.1
-          # we surface an explicit "not yet" error rather than fall
-          # back to legacy flat-rate, so callers don't accidentally
-          # exercise a half-built code path.
-          raise BookingError,
-            "Normal session booking requires an active session block " \
-            "(coming in a future release). Book an assessment session first."
+          # v2 normal session: client must have a current therapist,
+          # the slot must belong to that therapist, and they must
+          # have an active block with sessions remaining and the
+          # up-front payment succeeded.
+          cp_current_tp = @client_profile.current_therapist_id
+          if cp_current_tp.nil?
+            raise BookingError,
+              "Book an assessment session first to choose a therapist."
+          end
+          if slot.therapist_profile_id != cp_current_tp
+            raise BookingError,
+              "You can only book normal sessions with your current therapist."
+          end
+
+          # Find an active block with this therapist that has paid
+          # up-front and has sessions remaining.
+          block = @client_profile.session_blocks
+            .where(therapist_profile_id: cp_current_tp, status: :active)
+            .where("sessions_used < sessions_total")
+            .order(purchased_at: :asc)
+            .first
+
+          if block.nil?
+            raise BookingError,
+              "You need an active session block to book a normal session. " \
+              "Buy a block first."
+          end
+
+          # Block exists but the up-front payment hasn't succeeded
+          # yet? Don't let them book on credit.
+          if block.first_payment.nil? || !block.first_payment.succeeded?
+            raise BookingError,
+              "Your block purchase hasn't been paid yet. Complete payment first."
+          end
+
+          # Phase 7 will check installment-due here. For Phase 6 we
+          # don't gate on it since installment mode isn't shipped yet.
+
+          @session_block = block
+
+          # Normal sessions don't have an additional charge — they're
+          # paid via the block. Payment row still gets created with
+          # amount 0 so the booking flow remains uniform.
+          0
         else
           raise BookingError, "Unknown session_kind: #{@session_kind}"
         end
@@ -63,14 +100,30 @@ class BookAppointment
         therapist_profile_id: slot.therapist_profile_id,
         availability_slot: slot,
         reason: @reason,
-        status: :pending_payment,
-        session_kind: @session_kind
+        # Normal sessions go straight to :booked since they're funded
+        # by the block — no separate payment intent needed.
+        status: @session_kind == :normal ? :booked : :pending_payment,
+        session_kind: @session_kind,
+        session_block_id: @session_block&.id
       )
       unless appointment.save
         raise BookingError, appointment.errors.full_messages.to_sentence
       end
 
+      # Normal session: decrement the block, no payment intent needed.
+      if @session_kind == :normal
+        @session_block.update!(sessions_used: @session_block.sessions_used + 1)
+        # Mark block completed if this was the last session.
+        if @session_block.sessions_used >= @session_block.sessions_total
+          @session_block.update!(status: :completed)
+        end
+        # No payment intent — return appointment with payment: nil.
+        return Result.new(success?: true, appointment: appointment, payment: nil)
+      end
+
+      # Assessment session: existing flow — create Payment + intent.
       payment = Payment.create!(
+        payable: appointment,
         appointment: appointment,
         client_profile: @client_profile,
         amount_cents: amount_cents,

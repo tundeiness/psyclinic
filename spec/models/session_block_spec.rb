@@ -60,6 +60,7 @@ RSpec.describe SessionBlock, type: :model do
     it "returns false once second_payment is recorded" do
       appt = build_appointment_for(cp, tp)
       payment = Payment.create!(
+        payable: appt,
         appointment: appt,
         client_profile: cp,
         amount_cents: 12_000_000,

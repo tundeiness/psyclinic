@@ -33,18 +33,19 @@ RSpec.describe "Co-admin, flat rate & v2 pricing", type: :request do
       expect(r.payment.amount_cents).to eq(5_000_000)
     end
 
-    it "rejects a normal booking before block purchasing lands" do
-      # Phase 5.1: normal sessions require a SessionBlock which Phase 6
-      # introduces. Booking a :normal session must fail cleanly with
-      # a helpful error rather than silently fall back to legacy
-      # flat-rate pricing.
+    it "rejects a normal booking cleanly when prereqs are missing" do
+      # Phase 6: normal sessions require both a current therapist
+      # AND an active block. The client_profile here has neither,
+      # so we hit the earlier "no current therapist" check before
+      # the block check. Either message is acceptable; the spirit
+      # of the test is that the failure is graceful and explanatory.
       r = BookAppointment.call(
         client_profile: cp,
         availability_slot_id: slot(2.days.from_now).id,
         session_kind: :normal
       )
       expect(r.success?).to be(false)
-      expect(r.error).to match(/active session block/i)
+      expect(r.error).to match(/assessment|session block/i)
     end
   end
 

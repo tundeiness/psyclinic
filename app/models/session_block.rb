@@ -7,6 +7,14 @@ class SessionBlock < ApplicationRecord
   belongs_to :first_payment,  class_name: "Payment", optional: true
   belongs_to :second_payment, class_name: "Payment", optional: true
 
+  # v2: a SessionBlock is a payable — Payment.payable_type = "SessionBlock".
+  # The "primary" payment row is the up-front charge that funded this
+  # block. Use first_payment / second_payment for the explicit
+  # installment flow; use `payment` for the generic polymorphic
+  # reverse (returns the same record as first_payment for the
+  # mock-checkout flow).
+  has_one :payment, as: :payable, dependent: :destroy
+
   has_many :appointments, dependent: :nullify
 
   enum :payment_mode, { full: 0, installment: 1 }, default: :full

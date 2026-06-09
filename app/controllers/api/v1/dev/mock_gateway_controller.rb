@@ -60,10 +60,18 @@ module Api
           dispatch_ok = result.success? || result.ignored || result.payment.present?
 
           if dispatch_ok
+            payment.reload
+            payable = payment.payable
             render json: {
               simulated: outcome_param,
-              payment_status: payment.reload.status,
-              appointment_status: payment.appointment&.reload&.status
+              payment_status: payment.status,
+              # Only one of these will be present depending on payable
+              # type. The frontend uses payable_type to route post-
+              # checkout (booking-confirmed page vs block-purchased
+              # page).
+              payable_type: payment.payable_type,
+              appointment_status: payable.is_a?(Appointment) ? payable.reload.status : nil,
+              session_block_id: payable.is_a?(SessionBlock) ? payable.id : nil
             }
           else
             render json: { error: result.error, payment_status: payment.reload.status },

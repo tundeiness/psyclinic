@@ -164,5 +164,11 @@ class Ability
     # note, service plan).
     can %i[create read], DassAssessment, client_profile_id: cp.id
     can %i[create read], WheelOfLifeAssessment, client_profile_id: cp.id
+
+    # v2 block purchasing — clients buy 6-session blocks for use
+    # with their current therapist. They can see their own blocks
+    # but never another client's.
+    can :create, SessionBlock
+    can :read,   SessionBlock, client_profile_id: cp.id
   end
 end

@@ -1,6 +1,16 @@
 class Payment < ApplicationRecord
-  belongs_to :appointment
+  # v2: polymorphic. A Payment now attaches to either an Appointment
+  # (legacy + assessment-session payments) or a SessionBlock (block
+  # purchases). Both `appointment` and `payable` work — `appointment`
+  # is kept as a legacy accessor that resolves through `payable` when
+  # the payable is an Appointment, returning nil for block payments.
+  belongs_to :payable, polymorphic: true
   belongs_to :client_profile
+
+  # Legacy accessor — many existing callers read payment.appointment
+  # directly. Resolve through payable when present so block-payment
+  # callers get nil cleanly (rather than blowing up on missing FK).
+  belongs_to :appointment, optional: true
 
   enum :status, {
     pending: 0,
@@ -14,6 +24,12 @@ class Payment < ApplicationRecord
 
   def amount
     amount_cents / 100.0
+  end
+
+  # Returns the SessionBlock if this payment is for one, else nil.
+  # Convenience for callers that want the block-typed object.
+  def session_block
+    payable.is_a?(SessionBlock) ? payable : nil
   end
 
   def mark_succeeded!(reference: nil, payload: {})

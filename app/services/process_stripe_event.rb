@@ -10,8 +10,8 @@
 # sessions, notifying the therapist) live in ConfirmPayment so the
 # logic is shared with the legacy direct-confirm flow.
 class ProcessStripeEvent
-  Result = Struct.new(:success?, :payment, :appointment, :error, :ignored,
-    keyword_init: true)
+  Result = Struct.new(:success?, :payment, :appointment, :session_block,
+    :error, :ignored, keyword_init: true)
 
   HANDLED_TYPES = %w[
     payment_intent.succeeded
@@ -52,8 +52,11 @@ class ProcessStripeEvent
     # Idempotency: this event already processed for this payment?
     # Don't double-confirm / double-notify.
     if payment.processed_event_ids.include?(event_id)
+      payable = payment.payable
       return Result.new(success?: true, payment: payment,
-        appointment: payment.appointment, ignored: true)
+        appointment: payable.is_a?(Appointment) ? payable : nil,
+        session_block: payable.is_a?(SessionBlock) ? payable : nil,
+        ignored: true)
     end
 
     outcome = (type == "payment_intent.succeeded") ? :succeeded : :failed
@@ -82,6 +85,7 @@ class ProcessStripeEvent
       success?: result.success?,
       payment: result.payment,
       appointment: result.appointment,
+      session_block: result.session_block,
       error: result.error
     )
   end

@@ -14,9 +14,10 @@ end
 
 class AppointmentSerializer
   def self.call(appt)
-    {
+    base = {
       id: appt.id,
       status: appt.status,
+      session_kind: appt.session_kind,
       reason: appt.reason,
       client: {
         id: appt.client_profile_id,
@@ -33,5 +34,19 @@ class AppointmentSerializer
       },
       created_at: appt.created_at
     }
+
+    # v2: clients need to resume payment if they closed the checkout
+    # mid-flow. Include the payment id + intent reference when the
+    # appointment is still pending_payment so the dashboard's
+    # "Resume" link can route to the checkout page.
+    if appt.pending_payment? && appt.payment.present?
+      base[:payment] = {
+        id: appt.payment.id,
+        provider_reference: appt.payment.provider_reference,
+        amount_cents: appt.payment.amount_cents
+      }
+    end
+
+    base
   end
 end

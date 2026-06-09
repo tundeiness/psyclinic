@@ -32,6 +32,15 @@ class PurchaseSessionBlock
           "Book an assessment first."
       end
 
+      # Phase 8: Cerca Africa requires every client to sign the
+      # services contract before purchasing a block. The gate fires
+      # on the current required contract version; clients with a
+      # signed older version must re-sign.
+      unless ClientContract.current_for(@client_profile)
+        raise PurchaseError,
+          "You must sign the client services contract before buying a block."
+      end
+
       # One active or pending block at a time per client. Surfaces a
       # clean error rather than allowing two blocks to exist
       # simultaneously (which would confuse the booking flow).

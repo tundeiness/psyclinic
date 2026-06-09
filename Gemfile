@@ -19,6 +19,9 @@ gem "active_model_serializers", "~> 0.10.14"
 # CORS for the future frontend
 gem "rack-cors", "~> 2.0"
 
+# PDF generation (Phase 8: client services contract).
+gem "prawn", "~> 2.5"
+
 gem "bootsnap", require: false
 gem "tzinfo-data", platforms: %i[windows jruby]
 

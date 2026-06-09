@@ -14,6 +14,7 @@ class ClientProfile < ApplicationRecord
   # with their current therapist. Multiple blocks can exist over time
   # (active + completed + forfeited history).
   has_many :session_blocks, dependent: :destroy
+  has_many :client_contracts, dependent: :destroy
 
   # EMR associations.
   #

@@ -91,6 +91,12 @@ class Ability
     # See and update appointments that belong to them.
     can %i[read update], Appointment, therapist_profile_id: tp.id
 
+    # Phase 8: any therapist can read contracts and certify uploads.
+    # Contracts are practice-wide records, not bound to a specific
+    # therapist-client relationship — the queue is FIFO and any
+    # qualified staff member can clear it.
+    can %i[read update], ClientContract
+
     # EMR forms — v2 authorization model.
     #
     # For therapist-authored records (intake, session note, service
@@ -170,5 +176,9 @@ class Ability
     # but never another client's.
     can :create, SessionBlock
     can :read,   SessionBlock, client_profile_id: cp.id
+
+    # Phase 8: client services contract. Client can create + read
+    # their own; never sees another client's contract.
+    can %i[create read], ClientContract, client_profile_id: cp.id
   end
 end

@@ -68,6 +68,11 @@ Rails.application.routes.draw do
             patch :reject
           end
         end
+
+        # Phase 8: client services contract certification queue.
+        get  "contracts/pending",      to: "contracts#pending"
+        post "contracts/:id/certify",  to: "contracts#certify"
+        get  "contracts/:id/document", to: "contracts#document"
       end
 
       # --- Therapist surface ---
@@ -101,6 +106,12 @@ Rails.application.routes.draw do
         resources :session_blocks, only: %i[index create] do
           member { post :pay_installment }
         end
+
+        # Phase 8: client services contract (one-time signed).
+        get  "contracts/current",  to: "contracts#current"
+        get  "contracts/document", to: "contracts#document"
+        post "contracts/sign",     to: "contracts#sign"
+        post "contracts/upload",   to: "contracts#upload"
       end
 
       # --- Stripe webhooks (real Stripe; also receives dev mock events

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_01_000019) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_01_000021) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -50,6 +50,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000019) do
     t.integer "block_full_price_cents", default: 30000000, null: false
     t.integer "block_installment_first_pct", default: 60, null: false
     t.integer "block_installment_second_pct", default: 40, null: false
+    t.integer "pending_payment_expiry_minutes", default: 30, null: false
   end
 
   create_table "appointments", force: :cascade do |t|
@@ -276,9 +277,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000019) do
     t.jsonb "processed_event_ids", default: [], null: false
     t.string "payable_type", null: false
     t.bigint "payable_id", null: false
+    t.datetime "expired_at"
     t.index ["appointment_id"], name: "index_payments_on_appointment_id"
     t.index ["client_profile_id"], name: "index_payments_on_client_profile_id"
-    t.index ["payable_type", "payable_id"], name: "idx_unique_payment_per_payable", unique: true
+    t.index ["expired_at"], name: "index_payments_on_expired_at"
+    t.index ["payable_type", "payable_id"], name: "idx_payments_on_payable"
+    t.index ["payable_type", "payable_id"], name: "idx_unique_payment_per_appointment_payable", unique: true, where: "((payable_type)::text = 'Appointment'::text)"
     t.index ["provider_reference"], name: "index_payments_on_provider_reference"
     t.index ["status"], name: "index_payments_on_status"
     t.check_constraint "amount_cents >= 0", name: "chk_payment_amount_non_negative"

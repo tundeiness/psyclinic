@@ -5,6 +5,12 @@ module Api
         before_action :require_client_profile
 
         def index
+          # v2 Phase 7.1: sweep this client's stale pending_payment
+          # appointments before serializing — the list reflects current
+          # reality, not stale reservations the user has walked away
+          # from.
+          ExpireStalePayments.call(client_profile: @cp)
+
           appts = Appointment.where(client_profile_id: @cp.id)
                              .includes(:therapist_profile, :availability_slot)
                              .order(created_at: :desc)

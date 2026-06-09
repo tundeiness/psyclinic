@@ -49,10 +49,9 @@ class PurchaseSessionBlock
         when :full
           AppSetting.current.block_full_price_cents.to_i
         when :installment
-          # Phase 7 will support installment. For Phase 6 we surface
-          # an explicit error so callers don't accidentally try.
-          raise PurchaseError,
-            "Installment plan is not yet available. Please pay in full."
+          # First installment: 60% (computed via AppSetting helper so
+          # any rounding stays consistent with the second installment).
+          AppSetting.current.installment_first_amount_cents.to_i
         else
           raise PurchaseError, "Unknown payment_mode: #{@payment_mode}"
         end

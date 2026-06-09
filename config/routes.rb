@@ -98,7 +98,9 @@ Rails.application.routes.draw do
           member { post :confirm }
         end
         # v2: block purchases.
-        resources :session_blocks, only: %i[index create]
+        resources :session_blocks, only: %i[index create] do
+          member { post :pay_installment }
+        end
       end
 
       # --- Stripe webhooks (real Stripe; also receives dev mock events

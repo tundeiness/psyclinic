@@ -8,12 +8,11 @@ class SessionBlock < ApplicationRecord
   belongs_to :second_payment, class_name: "Payment", optional: true
 
   # v2: a SessionBlock is a payable — Payment.payable_type = "SessionBlock".
-  # The "primary" payment row is the up-front charge that funded this
-  # block. Use first_payment / second_payment for the explicit
-  # installment flow; use `payment` for the generic polymorphic
-  # reverse (returns the same record as first_payment for the
-  # mock-checkout flow).
-  has_one :payment, as: :payable, dependent: :destroy
+  # has_many because installment-mode blocks have TWO payments (60% +
+  # 40%). For full-pay blocks, only one Payment row exists. Prefer the
+  # explicit first_payment / second_payment accessors when you want
+  # one specific row.
+  has_many :payments, as: :payable, dependent: :destroy
 
   has_many :appointments, dependent: :nullify
 
@@ -30,10 +29,17 @@ class SessionBlock < ApplicationRecord
   validates :purchased_at, presence: true
 
   # True once the client has consumed 3 sessions in an installment-mode
-  # block — used by the booking flow (Phase 6+) to gate further booking
-  # behind paying the 40% remainder.
+  # block AND the second-installment payment has not yet succeeded.
+  # Used by the booking flow (Phase 7+) to gate session 4+ behind
+  # paying the 40% remainder.
   def installment_due?
-    installment? && sessions_used >= 3 && second_payment_id.nil?
+    return false unless installment?
+    return false if sessions_used < 3
+    return true if second_payment_id.nil?
+    # A second_payment row exists but is still pending or failed —
+    # not yet "paid." Treat as still due so the client gets the nag
+    # to complete it.
+    !second_payment&.succeeded?
   end
 
   def sessions_remaining

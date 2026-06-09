@@ -35,7 +35,27 @@ class ConfirmPayment
   end
 
   def call
+    # Reload from DB so guards below see authoritative current state,
+    # not whatever the caller's in-memory record happens to hold. The
+    # webhook flow loads Payment.find_by(provider_reference:) fresh,
+    # but other callers (services, tests, retries) may pass a stale
+    # reference — defending here is cheaper than auditing every site.
+    @payment.reload
+
     return already(@payment) if @payment.succeeded?
+
+    # v2 Phase 7.1: an already-expired payment must not be revivable
+    # by a late webhook. ExpireStalePayments marks the payment :failed
+    # and stamps expired_at; if we see either signal, ack the event
+    # at the dispatch level (success?: true so callers don't 500)
+    # but take NO state-changing action — the payment stays expired,
+    # the slot stays released.
+    if @payment.failed? || @payment.expired_at.present?
+      return Result.new(success?: true, payment: @payment,
+        appointment: @payment.payable.is_a?(Appointment) ? @payment.payable : nil,
+        session_block: @payment.payable.is_a?(SessionBlock) ? @payment.payable : nil,
+        error: "Payment already expired or failed; ignoring late event")
+    end
 
     # The legacy flow goes through the gateway's confirm method to
     # decide success vs failure. The webhook flow has already decided
@@ -109,11 +129,25 @@ class ConfirmPayment
       when Appointment
         payable.update!(status: :payment_failed)
       when SessionBlock
-        # Block payment failed → the block is dead weight. Mark it
-        # forfeited so it's clear it can't be used. The client can
-        # buy a new block via the purchase flow.
-        payable.update!(status: :forfeited,
-          notes: "Block purchase payment failed at #{Time.current.iso8601}")
+        # Differentiate first vs second installment.
+        # First-payment failure: block was never funded — forfeit.
+        # Second-installment failure: block already paid 60% and is
+        # in use; leave it active so the client can retry the 40%
+        # via the pay_installment endpoint. Clear second_payment_id
+        # so they can re-initiate (otherwise installment_due? would
+        # stay "due" forever pointing at a dead payment).
+        if @payment.id == payable.first_payment_id
+          payable.update!(status: :forfeited,
+            notes: "Block purchase payment failed at #{Time.current.iso8601}")
+        elsif @payment.id == payable.second_payment_id
+          payable.update!(second_payment_id: nil)
+        else
+          # Unknown payment association — surface in notes for audit.
+          payable.update!(
+            notes: "Unrecognized failed payment #{@payment.id} at " \
+                   "#{Time.current.iso8601}"
+          )
+        end
       end
     end
   end

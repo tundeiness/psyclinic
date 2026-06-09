@@ -19,6 +19,9 @@ class AppSetting < ApplicationRecord
                     only_integer: true }
   validate :installment_pcts_sum_to_100
 
+  validates :pending_payment_expiry_minutes,
+    numericality: { greater_than: 0, only_integer: true }
+
   def self.current
     first || create!(flat_rate_cents: 0)
   end

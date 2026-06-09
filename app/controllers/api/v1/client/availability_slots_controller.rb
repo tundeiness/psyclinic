@@ -10,6 +10,11 @@ module Api
           cp = current_client_profile
           return render_error("No client profile", status: :forbidden) if cp.nil?
 
+          # v2 Phase 7.1: sweep stale pending_payment appointments
+          # before listing slots so that abandoned reservations don't
+          # appear booked. Costs ~a single DB query per call.
+          ExpireStalePayments.call
+
           slots = AvailabilitySlot.bookable
                                   .includes(therapist_profile: :user)
                                   .order(starts_at: :asc)

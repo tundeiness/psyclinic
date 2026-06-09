@@ -35,6 +35,13 @@ class BookAppointment
     appointment = nil
     payment = nil
 
+    # v2 Phase 7.1: sweep this client's stale pending_payment
+    # appointments before creating a new one. Releases any slot they
+    # had reserved-but-not-paid past the configured timeout. Runs
+    # outside the booking transaction so any internal locking doesn't
+    # interleave with the slot lock below.
+    ExpireStalePayments.call(client_profile: @client_profile)
+
     ActiveRecord::Base.transaction do
       slot = AvailabilitySlot.lock.find_by(id: @availability_slot_id)
 
@@ -82,8 +89,14 @@ class BookAppointment
               "Your block purchase hasn't been paid yet. Complete payment first."
           end
 
-          # Phase 7 will check installment-due here. For Phase 6 we
-          # don't gate on it since installment mode isn't shipped yet.
+          # v2 Phase 7: installment-mode blocks gate further bookings
+          # behind the 40% payment once the client has used 3 sessions.
+          # The block's installment_due? predicate captures the rule.
+          if block.installment_due?
+            raise BookingError,
+              "Your installment plan has reached its threshold (3 sessions " \
+              "used). Pay the remaining 40% to book more sessions."
+          end
 
           @session_block = block
 

@@ -57,7 +57,7 @@ RSpec.describe SessionBlock, type: :model do
       expect(b.installment_due?).to be(true)
     end
 
-    it "returns false once second_payment is recorded" do
+    it "returns false once the second_payment has SUCCEEDED" do
       appt = build_appointment_for(cp, tp)
       payment = Payment.create!(
         payable: appt,
@@ -72,6 +72,27 @@ RSpec.describe SessionBlock, type: :model do
         second_payment: payment
       )
       expect(b.installment_due?).to be(false)
+    end
+
+    it "returns TRUE if second_payment exists but is still pending" do
+      # v2 Phase 7: a pending second_payment doesn't clear the
+      # installment-due flag. Only a succeeded one does. This stops a
+      # client from initiating then walking away while still booking
+      # more sessions.
+      appt = build_appointment_for(cp, tp)
+      payment = Payment.create!(
+        payable: appt,
+        appointment: appt,
+        client_profile: cp,
+        amount_cents: 12_000_000,
+        status: :pending
+      )
+      b = build_block(
+        payment_mode: :installment,
+        sessions_used: 4,
+        second_payment: payment
+      )
+      expect(b.installment_due?).to be(true)
     end
   end
 

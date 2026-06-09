@@ -77,11 +77,14 @@ RSpec.describe PurchaseSessionBlock do
       expect(result.success?).to be(true)
     end
 
-    it "rejects installment mode in Phase 6 with a 'not yet' error" do
+    it "accepts installment mode (Phase 7+) and creates a block with the 60% first payment" do
       cp.update!(current_therapist: tp)
+      AppSetting.current.update!(block_installment_first_pct: 60,
+        block_installment_second_pct: 40)
       result = PurchaseSessionBlock.call(client_profile: cp, payment_mode: :installment)
-      expect(result.success?).to be(false)
-      expect(result.error).to match(/installment.*not yet/i)
+      expect(result.success?).to be(true)
+      expect(result.session_block.payment_mode).to eq("installment")
+      expect(result.payment.amount_cents).to eq(18_000_000)  # 60% of 30M
     end
   end
 end

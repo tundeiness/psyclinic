@@ -13,6 +13,7 @@ RSpec.describe "Installment plan (60/40)", type: :request do
       block_installment_second_pct: 40
     )
     cp.update!(current_therapist: tp)
+    sign_contract_for!(cp)
   end
 
   def make_slot(starts: 2.days.from_now)

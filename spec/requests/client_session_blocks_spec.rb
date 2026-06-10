@@ -14,6 +14,7 @@ RSpec.describe "Client session_blocks endpoint", type: :request do
   describe "GET /api/v1/client/session_blocks" do
     it "returns the client's own blocks" do
       cp.update!(current_therapist: tp)
+      sign_contract_for!(cp)
       SessionBlock.create!(
         client_profile: cp, therapist_profile: tp,
         purchased_at: Time.current,
@@ -31,6 +32,7 @@ RSpec.describe "Client session_blocks endpoint", type: :request do
 
     it "does not leak another client's blocks" do
       cp.update!(current_therapist: tp)
+      sign_contract_for!(cp)
       SessionBlock.create!(
         client_profile: other_client.client_profile, therapist_profile: tp,
         purchased_at: Time.current,
@@ -45,6 +47,7 @@ RSpec.describe "Client session_blocks endpoint", type: :request do
   describe "POST /api/v1/client/session_blocks" do
     it "creates a block + payment intent on the happy path" do
       cp.update!(current_therapist: tp)
+      sign_contract_for!(cp)
 
       post "/api/v1/client/session_blocks",
         params: { payment_mode: "full" },

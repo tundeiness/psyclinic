@@ -15,7 +15,10 @@ RSpec.describe PurchaseSessionBlock do
   end
 
   describe "happy path" do
-    before { cp.update!(current_therapist: tp) }
+    before do
+      cp.update!(current_therapist: tp)
+      sign_contract_for!(cp)
+    end
 
     it "creates a session block + a pending payment with the full price" do
       result = PurchaseSessionBlock.call(client_profile: cp, payment_mode: :full)
@@ -48,6 +51,7 @@ RSpec.describe PurchaseSessionBlock do
 
     it "rejects when the client already has an active block with sessions remaining" do
       cp.update!(current_therapist: tp)
+      sign_contract_for!(cp)
       SessionBlock.create!(
         client_profile: cp,
         therapist_profile: tp,
@@ -64,6 +68,7 @@ RSpec.describe PurchaseSessionBlock do
 
     it "allows a new block purchase after the previous one is completed" do
       cp.update!(current_therapist: tp)
+      sign_contract_for!(cp)
       SessionBlock.create!(
         client_profile: cp,
         therapist_profile: tp,
@@ -79,6 +84,7 @@ RSpec.describe PurchaseSessionBlock do
 
     it "accepts installment mode (Phase 7+) and creates a block with the 60% first payment" do
       cp.update!(current_therapist: tp)
+      sign_contract_for!(cp)
       AppSetting.current.update!(block_installment_first_pct: 60,
         block_installment_second_pct: 40)
       result = PurchaseSessionBlock.call(client_profile: cp, payment_mode: :installment)

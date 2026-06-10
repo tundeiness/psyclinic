@@ -13,6 +13,7 @@ RSpec.describe "Block purchase end-to-end (mock checkout)", type: :request do
       block_installment_second_pct: 40
     )
     cp.update!(current_therapist: tp)
+    sign_contract_for!(cp)
   end
 
   describe "successful block purchase" do

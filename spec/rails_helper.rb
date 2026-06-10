@@ -31,4 +31,21 @@ RSpec.configure do |config|
       { "Authorization" => "Bearer #{token}" }
     end
   end, type: :request)
+
+  # Phase 8 introduced a signed-contract gate on PurchaseSessionBlock.
+  # Specs that test block-purchase logic in isolation need a quick way
+  # to satisfy that gate without going through the full contract-signing
+  # flow. This helper creates a valid electronic contract for the given
+  # client at the current version.
+  config.include(Module.new do
+    def sign_contract_for!(client_profile)
+      ClientContract.create!(
+        client_profile: client_profile,
+        contract_version: AppSetting.current.current_contract_version,
+        signature_method: :electronic,
+        signed_at: Time.current,
+        electronic_signature_name: client_profile.full_name
+      )
+    end
+  end)
 end

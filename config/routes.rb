@@ -68,8 +68,13 @@ Rails.application.routes.draw do
             patch :reject
           end
         end
+      end
 
-        # Phase 8: client services contract certification queue.
+      # Phase 8: contract certification queue. Lives outside the admin
+      # namespace because regular therapists (not just admins/co-admins)
+      # need to be able to certify uploads — the admin namespace gates
+      # everything behind the admin-panel ability.
+      namespace :staff do
         get  "contracts/pending",      to: "contracts#pending"
         post "contracts/:id/certify",  to: "contracts#certify"
         get  "contracts/:id/document", to: "contracts#document"

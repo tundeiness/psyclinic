@@ -74,19 +74,18 @@ RSpec.describe "Client contracts endpoint", type: :request do
     end
 
     it "rejects an uploaded contract that hasn't been certified yet" do
-      ClientContract.create!(
+      contract = ClientContract.new(
         client_profile: cp,
         contract_version: "v1-2026",
         signature_method: :uploaded,
         signed_at: Time.current
-      ).tap do |c|
-        c.uploaded_document.attach(
-          io: StringIO.new("fake pdf bytes"),
-          filename: "test.pdf",
-          content_type: "application/pdf"
-        )
-        c.save!
-      end
+      )
+      contract.uploaded_document.attach(
+        io: StringIO.new("fake pdf bytes"),
+        filename: "test.pdf",
+        content_type: "application/pdf"
+      )
+      contract.save!
       r = PurchaseSessionBlock.call(client_profile: cp, payment_mode: :full)
       expect(r.success?).to be(false)
       expect(r.error).to match(/sign the client services contract/i)

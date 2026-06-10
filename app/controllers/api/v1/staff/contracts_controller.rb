@@ -1,6 +1,6 @@
 module Api
   module V1
-    module Admin
+    module Staff
       class ContractsController < BaseController
         before_action :require_admin_or_therapist
 

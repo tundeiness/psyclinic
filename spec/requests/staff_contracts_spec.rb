@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe "Admin contracts certification", type: :request do
+RSpec.describe "Staff contracts certification", type: :request do
   let(:admin) { create(:user, :admin) }
   let(:therapist) { create(:user, :therapist) }
   let(:client_user) { create(:user, :client) }
@@ -12,25 +12,25 @@ RSpec.describe "Admin contracts certification", type: :request do
   end
 
   def make_upload!
-    ClientContract.create!(
+    contract = ClientContract.new(
       client_profile: cp,
       contract_version: "v1-2026",
       signature_method: :uploaded,
       signed_at: Time.current
-    ).tap do |c|
-      c.uploaded_document.attach(
-        io: StringIO.new("%PDF-1.4 fake bytes"),
-        filename: "signed.pdf",
-        content_type: "application/pdf"
-      )
-      c.save!
-    end
+    )
+    contract.uploaded_document.attach(
+      io: StringIO.new("%PDF-1.4 fake bytes"),
+      filename: "signed.pdf",
+      content_type: "application/pdf"
+    )
+    contract.save!
+    contract
   end
 
-  describe "GET /api/v1/admin/contracts/pending" do
+  describe "GET /api/v1/staff/contracts/pending" do
     it "lists uploaded contracts awaiting certification" do
       make_upload!
-      get "/api/v1/admin/contracts/pending", headers: auth_header_for(admin)
+      get "/api/v1/staff/contracts/pending", headers: auth_header_for(admin)
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
       expect(body["contracts"].size).to eq(1)
@@ -40,25 +40,25 @@ RSpec.describe "Admin contracts certification", type: :request do
 
     it "is accessible to therapists too" do
       make_upload!
-      get "/api/v1/admin/contracts/pending", headers: auth_header_for(therapist)
+      get "/api/v1/staff/contracts/pending", headers: auth_header_for(therapist)
       expect(response).to have_http_status(:ok)
     end
 
     it "forbids unauthenticated access" do
-      get "/api/v1/admin/contracts/pending"
+      get "/api/v1/staff/contracts/pending"
       expect(response).to have_http_status(:unauthorized).or have_http_status(:forbidden)
     end
 
     it "forbids clients" do
-      get "/api/v1/admin/contracts/pending", headers: auth_header_for(client_user)
+      get "/api/v1/staff/contracts/pending", headers: auth_header_for(client_user)
       expect(response).to have_http_status(:forbidden)
     end
   end
 
-  describe "POST /api/v1/admin/contracts/:id/certify" do
+  describe "POST /api/v1/staff/contracts/:id/certify" do
     it "marks an uploaded contract as certified" do
       c = make_upload!
-      post "/api/v1/admin/contracts/#{c.id}/certify",
+      post "/api/v1/staff/contracts/#{c.id}/certify",
         headers: auth_header_for(admin)
       expect(response).to have_http_status(:ok)
       c.reload
@@ -69,15 +69,15 @@ RSpec.describe "Admin contracts certification", type: :request do
 
     it "rejects certifying twice" do
       c = make_upload!
-      post "/api/v1/admin/contracts/#{c.id}/certify", headers: auth_header_for(admin)
-      post "/api/v1/admin/contracts/#{c.id}/certify", headers: auth_header_for(admin)
+      post "/api/v1/staff/contracts/#{c.id}/certify", headers: auth_header_for(admin)
+      post "/api/v1/staff/contracts/#{c.id}/certify", headers: auth_header_for(admin)
       expect(response).to have_http_status(:unprocessable_entity)
       expect(JSON.parse(response.body)["error"]).to match(/already certified/i)
     end
 
     it "rejects certifying an electronic contract" do
       c = SignClientContract.call(client_profile: cp, typed_name: cp.full_name).contract
-      post "/api/v1/admin/contracts/#{c.id}/certify", headers: auth_header_for(admin)
+      post "/api/v1/staff/contracts/#{c.id}/certify", headers: auth_header_for(admin)
       expect(response).to have_http_status(:unprocessable_entity)
       expect(JSON.parse(response.body)["error"]).to match(/only uploaded/i)
     end

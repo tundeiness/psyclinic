@@ -5,6 +5,11 @@ module Api
         before_action :require_therapist_profile
 
         def index
+          # Phase 12: auto-flip booked appointments past their end-time-
+          # plus-grace-period to :no_show before serializing. Therapist
+          # gets up-to-date status without needing a background job.
+          SweepNoShows.call(therapist_profile: @tp)
+
           appts = Appointment.where(therapist_profile_id: @tp.id)
                              .includes(:client_profile, :availability_slot)
                              .order(created_at: :desc)

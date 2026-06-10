@@ -5,14 +5,18 @@ class Appointment < ApplicationRecord
   belongs_to :session_block, optional: true
 
   # Integers preserved so existing rows keep their meaning. New states
-  # appended. pending_payment/booked/completed reserve the slot;
-  # cancelled/payment_failed release it (see partial unique index).
+  # appended. pending_payment/booked/completed/no_show reserve the slot
+  # (the session was scheduled and the slot was used, even if the
+  # client didn't show); cancelled/payment_failed release it (see
+  # partial unique index).
   enum :status, {
     booked: 0,
     completed: 1,
     cancelled: 2,
     pending_payment: 3,
-    payment_failed: 4
+    payment_failed: 4,
+    no_show: 5  # Phase 12: client missed without 24h notice; session
+                # counts as held per policy doc.
   }, default: :pending_payment
 
   # v2 distinction. Default :normal so any existing rows / future
@@ -23,7 +27,7 @@ class Appointment < ApplicationRecord
 
   has_one :payment, dependent: :destroy
 
-  RESERVING_STATUSES = %w[booked completed pending_payment].freeze
+  RESERVING_STATUSES = %w[booked completed pending_payment no_show].freeze
 
   validate :slot_belongs_to_therapist
   validate :slot_is_approved, on: :create

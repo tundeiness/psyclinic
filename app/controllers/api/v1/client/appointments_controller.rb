@@ -10,6 +10,10 @@ module Api
           # reality, not stale reservations the user has walked away
           # from.
           ExpireStalePayments.call(client_profile: @cp)
+          # Phase 12: also flip any expired booked appointments to
+          # :no_show so the client sees the truthful status. Scoped
+          # to this client so we don't touch other clients' data.
+          SweepNoShows.call(client_profile: @cp)
 
           appts = Appointment.where(client_profile_id: @cp.id)
                              .includes(:therapist_profile, :availability_slot)
@@ -47,15 +51,39 @@ module Api
           end
         end
 
-        # Client cancels their own booked appointment.
+        # Client cancels their own booked or pending-payment appointment.
+        # Phase 12: enforces the 24-hour reschedule rule. Booked
+        # appointments within 24 hours of their start time can no
+        # longer be cancelled by the client (per Cerca Africa policy).
+        # Pending-payment appointments cancel freely since no committed
+        # session is being released.
         def destroy
           appt = Appointment.find(params[:id])
           authorize! :destroy, appt
-          appt.cancel!
+
+          if appt.booked? && cancellation_too_late?(appt)
+            return render json: {
+              error: "Sessions can only be cancelled up to 24 hours before " \
+                     "the start time. Please contact the clinic if you have " \
+                     "an emergency.",
+              code: "cancellation_too_late"
+            }, status: :unprocessable_entity
+          end
+
+          appt.update!(
+            status: :cancelled,
+            cancellation_reason: params[:cancellation_reason].presence
+          )
           render json: { message: "Appointment cancelled" }, status: :ok
         end
 
         private
+
+        def cancellation_too_late?(appt)
+          starts_at = appt.availability_slot&.starts_at
+          return false if starts_at.nil?
+          starts_at < 24.hours.from_now
+        end
 
         def require_client_profile
           @cp = current_client_profile

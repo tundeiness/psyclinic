@@ -5,6 +5,9 @@ class AppointmentSerializer
       status: appt.status,
       session_kind: appt.session_kind,
       reason: appt.reason,
+      # Phase 12 audit signals.
+      cancellation_reason: appt.cancellation_reason,
+      no_show_marked_at: appt.no_show_marked_at,
       client: {
         id: appt.client_profile_id,
         name: appt.client_profile&.full_name

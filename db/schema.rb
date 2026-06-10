@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_01_000022) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_01_000023) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -65,6 +65,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000022) do
     t.datetime "reminder_sent_at"
     t.integer "session_kind", default: 0, null: false
     t.bigint "session_block_id"
+    t.text "cancellation_reason"
+    t.datetime "no_show_marked_at"
     t.index ["availability_slot_id"], name: "idx_one_active_appointment_per_slot", unique: true, where: "(status <> ALL (ARRAY[2, 4]))"
     t.index ["availability_slot_id"], name: "index_appointments_on_availability_slot_id"
     t.index ["client_profile_id", "status"], name: "index_appointments_on_client_profile_id_and_status"

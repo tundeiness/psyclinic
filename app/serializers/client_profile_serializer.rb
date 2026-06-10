@@ -5,7 +5,12 @@ class ClientProfileSerializer
     data = {
       id: cp.id,
       date_of_birth: cp.date_of_birth,
-      notes: cp.notes
+      notes: cp.notes,
+      # Phase 12: surface no-show signals so the therapist UI can
+      # flag clients who've missed 3 consecutive sessions per the
+      # Cerca Africa policy.
+      consecutive_no_shows: cp.consecutive_no_shows,
+      treatment_review_recommended: cp.treatment_review_recommended?
     }
     if include_user
       data[:user] = {

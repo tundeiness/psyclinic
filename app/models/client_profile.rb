@@ -37,4 +37,41 @@ class ClientProfile < ApplicationRecord
     user_id = therapist.is_a?(User) ? therapist.id : therapist.user_id
     intake_forms.find_by(author_id: user_id)
   end
+
+  # Phase 12: count of consecutive no-shows ending at the most recent
+  # session. Walks back through appointments ordered by slot start
+  # time (most recent first). Stops counting at the first :completed
+  # — that resets the streak. :cancelled (cancelled with notice >24h
+  # out) is treated as "absent from the streak" — it neither resets
+  # nor counts. Other statuses (:booked future, :pending_payment,
+  # :payment_failed) are ignored.
+  #
+  # Per Cerca Africa policy: "Missing 3 consecutive sessions will
+  # lead to a review of therapy or coaching goals."
+  def consecutive_no_shows
+    relevant = appointments
+      .joins(:availability_slot)
+      .where("availability_slots.starts_at <= ?", Time.current)
+      .where(status: %w[completed no_show cancelled])
+      .order("availability_slots.starts_at DESC")
+      .pluck(:status)
+
+    streak = 0
+    relevant.each do |status|
+      case status
+      when "no_show"
+        streak += 1
+      when "completed"
+        break  # streak resets at the most recent attended session
+      when "cancelled"
+        next  # cancelled-with-notice neither counts nor resets
+      end
+    end
+    streak
+  end
+
+  # Convenience for the warning UI.
+  def treatment_review_recommended?
+    consecutive_no_shows >= 3
+  end
 end

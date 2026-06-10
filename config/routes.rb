@@ -99,6 +99,16 @@ Rails.application.routes.draw do
         end
       end
 
+      # Phase 11: session notes — one per appointment, therapist-authored,
+      # signed-and-locked. URL shape:
+      #   /api/v1/appointments/:appointment_id/session_note
+      scope "appointments/:appointment_id" do
+        resource :session_note, only: %i[show create update],
+          controller: "session_notes" do
+          post :sign
+        end
+      end
+
       # --- Client surface ---
       namespace :client do
         # Bookable approved slots, optionally filtered by therapist.

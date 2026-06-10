@@ -5,10 +5,13 @@ module Api
         before_action :require_client_profile
 
         # GET /api/v1/client/session_blocks
-        # Returns the client's blocks (active, completed, forfeited).
-        # Mainly used by the dashboard to show "you have N sessions
-        # remaining" or "buy a block" depending on state.
+        # Returns the client's blocks (active, completed, forfeited,
+        # expired). Mainly used by the dashboard to show "you have N
+        # sessions remaining" or "buy a block" depending on state.
         def index
+          # Phase 13: flip stale active blocks to :expired before
+          # serializing so the dashboard reflects truth.
+          ExpireStaleBlocks.call(client_profile: @cp)
           blocks = @cp.session_blocks.order(purchased_at: :desc)
           render json: { session_blocks: blocks.map { |b| serialize(b) } }
         end
@@ -117,7 +120,13 @@ module Api
             # Up-front payment status — the booking flow gates on
             # this being :succeeded before letting the client book
             # normal sessions against the block.
-            first_payment_status: block.first_payment&.status
+            first_payment_status: block.first_payment&.status,
+            # Phase 13: 6-week expiry signals. expires_at is computed
+            # from last_held_at (or first payment if none held yet).
+            # The countdown UI uses this directly.
+            expires_at: block.expires_at,
+            expired: block.expired?,
+            last_held_at: block.last_held_at
           }
         end
       end

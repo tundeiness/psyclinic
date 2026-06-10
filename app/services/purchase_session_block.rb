@@ -44,10 +44,17 @@ class PurchaseSessionBlock
       # One active or pending block at a time per client. Surfaces a
       # clean error rather than allowing two blocks to exist
       # simultaneously (which would confuse the booking flow).
+      #
+      # Phase 13: filter out expired blocks too — an :active block
+      # whose 6-week window has elapsed is functionally dead even if
+      # the sweeper hasn't flipped its status yet. Without this guard,
+      # a client whose block just expired would have to wait for a
+      # sweep cycle before being allowed to buy a new one.
       existing = @client_profile.session_blocks
         .where(status: :active)
         .where("sessions_used < sessions_total")
-        .exists?
+        .reject(&:expired?)
+        .any?
       if existing
         raise PurchaseError,
           "You already have an active block with sessions remaining."

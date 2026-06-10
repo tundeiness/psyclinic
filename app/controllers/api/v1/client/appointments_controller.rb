@@ -14,6 +14,8 @@ module Api
           # :no_show so the client sees the truthful status. Scoped
           # to this client so we don't touch other clients' data.
           SweepNoShows.call(client_profile: @cp)
+          # Phase 13: expire stale session blocks (6-week rule).
+          ExpireStaleBlocks.call(client_profile: @cp)
 
           appts = Appointment.where(client_profile_id: @cp.id)
                              .includes(:therapist_profile, :availability_slot)

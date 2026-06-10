@@ -77,6 +77,18 @@ class BookAppointment
             .first
 
           if block.nil?
+            # Phase 13: check whether they have an expired block, so
+            # we can give a more useful error than "no active block."
+            expired_block = @client_profile.session_blocks
+              .where(therapist_profile_id: cp_current_tp, status: :expired)
+              .order(purchased_at: :desc)
+              .first
+            if expired_block
+              raise BookingError,
+                "Your previous block expired (6-week rule). " \
+                "Please purchase a new block to continue."
+            end
+
             raise BookingError,
               "You need an active session block to book a normal session. " \
               "Buy a block first."
@@ -87,6 +99,17 @@ class BookAppointment
           if block.first_payment.nil? || !block.first_payment.succeeded?
             raise BookingError,
               "Your block purchase hasn't been paid yet. Complete payment first."
+          end
+
+          # Phase 13: 6-week expiry per Cerca Africa policy.
+          # Unattended sessions expire 6 weeks after the last attended
+          # session (or 6 weeks after first payment if no session has
+          # been attended yet).
+          if block.expired?
+            raise BookingError,
+              "Your session block has expired. Unattended sessions " \
+              "expire 6 weeks after your last attended session. " \
+              "Please purchase a new block."
           end
 
           # v2 Phase 7: installment-mode blocks gate further bookings

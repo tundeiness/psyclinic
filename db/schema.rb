@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_01_000023) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_01_000024) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -141,6 +141,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000023) do
     t.bigint "current_therapist_id"
     t.index ["current_therapist_id"], name: "index_client_profiles_on_current_therapist_id"
     t.index ["user_id"], name: "index_client_profiles_on_user_id", unique: true
+  end
+
+  create_table "client_therapist_assignments", force: :cascade do |t|
+    t.bigint "client_profile_id", null: false
+    t.bigint "from_therapist_id"
+    t.bigint "to_therapist_id", null: false
+    t.datetime "started_at", null: false
+    t.datetime "ended_at"
+    t.bigint "forfeited_block_id"
+    t.integer "forfeited_sessions_count", default: 0, null: false
+    t.text "reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_profile_id"], name: "idx_one_open_assignment_per_client", unique: true, where: "(ended_at IS NULL)"
+    t.index ["client_profile_id"], name: "index_client_therapist_assignments_on_client_profile_id"
+    t.index ["forfeited_block_id"], name: "index_client_therapist_assignments_on_forfeited_block_id"
+    t.index ["from_therapist_id"], name: "index_client_therapist_assignments_on_from_therapist_id"
+    t.index ["to_therapist_id"], name: "index_client_therapist_assignments_on_to_therapist_id"
   end
 
   create_table "dass_assessments", force: :cascade do |t|
@@ -457,6 +475,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000023) do
   add_foreign_key "client_contracts", "users", column: "certified_by_user_id", on_delete: :nullify
   add_foreign_key "client_profiles", "therapist_profiles", column: "current_therapist_id", on_delete: :nullify
   add_foreign_key "client_profiles", "users", on_delete: :cascade
+  add_foreign_key "client_therapist_assignments", "client_profiles", on_delete: :cascade
+  add_foreign_key "client_therapist_assignments", "session_blocks", column: "forfeited_block_id", on_delete: :nullify
+  add_foreign_key "client_therapist_assignments", "therapist_profiles", column: "from_therapist_id", on_delete: :restrict
+  add_foreign_key "client_therapist_assignments", "therapist_profiles", column: "to_therapist_id", on_delete: :restrict
   add_foreign_key "dass_assessments", "appointments", on_delete: :nullify
   add_foreign_key "dass_assessments", "client_profiles", on_delete: :cascade
   add_foreign_key "dass_assessments", "users", column: "author_id", on_delete: :restrict

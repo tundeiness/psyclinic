@@ -21,7 +21,10 @@ RSpec.describe "Increment 5a: welcome, dashboard, reminders" do
       ids = json["therapists"].map { |t| t["id"] }
       expect(ids).to include(approved.therapist_profile.id)
       expect(ids).not_to include(pending.therapist_profile.id)
-      expect(json["therapists"].first).to include("headline", "bio", "hourly_rate_cents")
+      expect(json["therapists"].first).to include("headline", "bio")
+      # hourly_rate_cents is no longer in the public payload —
+      # Cerca Africa uses uniform clinic pricing.
+      expect(json["therapists"].first).not_to include("hourly_rate_cents")
     end
 
     it "excludes inactive therapist profiles" do

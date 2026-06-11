@@ -10,7 +10,12 @@ class ClientProfileSerializer
       # flag clients who've missed 3 consecutive sessions per the
       # Cerca Africa policy.
       consecutive_no_shows: cp.consecutive_no_shows,
-      treatment_review_recommended: cp.treatment_review_recommended?
+      treatment_review_recommended: cp.treatment_review_recommended?,
+      # Phase 14: current_therapist_id lets a therapist UI tell
+      # whether this client is currently theirs or a former one.
+      # The therapist-side serialization includes this so the
+      # client list can show a "Former patient" pill.
+      current_therapist_id: cp.current_therapist_id
     }
     if include_user
       data[:user] = {

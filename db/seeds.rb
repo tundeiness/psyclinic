@@ -51,6 +51,38 @@ else
   puts "  therapist already exists"
 end
 
+# A second therapist for QA — makes it possible to exercise Phase 14
+# (therapist switching) without manually crafting one in rails console.
+# Different specialization + headline so they're clearly distinct from
+# Jane in the directory.
+therapist2 = User.find_or_initialize_by(email: "therapist2@psyclinic.test")
+if therapist2.new_record?
+  therapist2.assign_attributes(
+    first_name: "Ade",
+    last_name: "Okafor",
+    role: :therapist,
+    status: :approved,
+    password: "Password123!",
+    password_confirmation: "Password123!"
+  )
+  therapist2.save!
+  therapist2.therapist_profile.update!(
+    bio: "Clinical psychologist focused on cognitive behavioural therapy " \
+         "for trauma and complex grief.",
+    license_number: "LIC-1002",
+    headline: "Trauma-informed CBT",
+    years_experience: 12
+  )
+  spec_trauma = Specialization.find_by(name: "Trauma / PTSD")
+  TherapistSpecialization.find_or_create_by!(
+    therapist_profile: therapist2.therapist_profile,
+    specialization: spec_trauma
+  ) if spec_trauma
+  puts "  created therapist 2 -> therapist2@psyclinic.test / Password123!"
+else
+  puts "  therapist 2 already exists"
+end
+
 client = User.find_or_initialize_by(email: "client@psyclinic.test")
 if client.new_record?
   client.assign_attributes(
@@ -128,6 +160,35 @@ if client.persisted? && therapist.persisted?
     puts "  created #{created} free bookable demo slots (next ~2 weeks)"
   else
     puts "  free demo slots already present"
+  end
+end
+
+# Phase 14 QA: bookable inventory for Ade too, so that after a client
+# switches to Ade they have slots to pick from. No demo booking — John
+# is pinned to Jane by default; the switch flow exercises Ade.
+if therapist2.persisted?
+  tp2 = therapist2.therapist_profile
+  future_free2 = AvailabilitySlot
+                   .where(therapist_profile: tp2)
+                   .where("starts_at > ?", 2.days.from_now)
+                   .count
+  if future_free2.zero?
+    created = 0
+    (3..12).each do |day_offset|
+      [11, 15].each do |hour|  # offset from Jane's 10/14 to look distinct
+        starts = day_offset.days.from_now.change(hour: hour, min: 0)
+        AvailabilitySlot.create!(
+          therapist_profile: tp2,
+          starts_at: starts,
+          ends_at: starts + 1.hour,
+          status: :approved
+        )
+        created += 1
+      end
+    end
+    puts "  created #{created} bookable slots for Ade (next ~2 weeks)"
+  else
+    puts "  Ade's slots already present"
   end
 end
 

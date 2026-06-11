@@ -38,7 +38,24 @@ class AppointmentSerializer
         id: appt.payment.id,
         provider_reference: appt.payment.provider_reference,
         amount_cents: appt.payment.amount_cents,
+        status: appt.payment.status,
         expires_at: appt.created_at + timeout_minutes.minutes
+      }
+    end
+
+    # Phase 14 polish: for cancelled appointments where a payment
+    # actually went through (e.g., the client paid for an assessment
+    # then cancelled it as a precondition to switching therapists),
+    # expose the payment status + amount so the appointments list can
+    # honestly surface a "Paid · non-refundable" badge. Without this,
+    # the cancelled row looks identical to a never-paid cancellation,
+    # and the client has no UI trail of the money they spent.
+    if appt.cancelled? && appt.payment&.succeeded?
+      base[:payment] = {
+        id: appt.payment.id,
+        provider_reference: appt.payment.provider_reference,
+        amount_cents: appt.payment.amount_cents,
+        status: appt.payment.status
       }
     end
 

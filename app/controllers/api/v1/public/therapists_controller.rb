@@ -30,13 +30,19 @@ module Api
         private
 
         def public_therapist_json(tp)
+          # Note: hourly_rate_cents is deliberately omitted from the
+          # public payload. Cerca Africa uses uniform clinic-wide
+          # pricing (set by admin in AppSetting: assessment_price_cents
+          # and block_full_price_cents). Per-therapist rates would
+          # mislead clients about what they actually pay. The column
+          # still exists on the model — admin-editable for legacy /
+          # internal reasons — but it's not shown publicly.
           {
             id: tp.id,
             full_name: tp.full_name,
             headline: tp.headline,
             bio: tp.bio,
             years_experience: tp.years_experience,
-            hourly_rate_cents: tp.hourly_rate_cents,
             avatar: AttachmentSerializer.one(tp.user.avatar),
             specializations: tp.specializations.map { |s| { id: s.id, name: s.name } }
           }

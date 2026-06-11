@@ -127,6 +127,10 @@ Rails.application.routes.draw do
         get  "contracts/document", to: "contracts#document"
         post "contracts/sign",     to: "contracts#sign"
         post "contracts/upload",   to: "contracts#upload"
+
+        # Phase 14: therapist switching.
+        get  "therapist_switches/preview", to: "therapist_switches#preview"
+        post "therapist_switches",         to: "therapist_switches#create"
       end
 
       # --- Stripe webhooks (real Stripe; also receives dev mock events

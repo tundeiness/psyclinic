@@ -52,6 +52,22 @@ class BookAppointment
       amount_cents =
         case @session_kind
         when :assessment
+          # Phase 14 honesty gate: if the client already has a current
+          # therapist, booking an assessment with someone else would
+          # silently fail to switch them (ConfirmPayment only sets
+          # current_therapist when it's nil). That collects money
+          # without actually binding the relationship. Force the
+          # explicit switch flow so the client sees the forfeit
+          # warning and consents.
+          cp_current_tp = @client_profile.current_therapist_id
+          if cp_current_tp && cp_current_tp != slot.therapist_profile_id
+            raise BookingError,
+              "You already have a current therapist. To begin therapy " \
+              "with a different therapist, switch from the Therapists " \
+              "page first — that flow explains the consequences " \
+              "(forfeited sessions, fresh assessment) before you commit."
+          end
+
           AppSetting.current.assessment_session_price_cents.to_i
         when :normal
           # v2 normal session: client must have a current therapist,

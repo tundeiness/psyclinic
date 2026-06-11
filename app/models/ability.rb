@@ -78,11 +78,32 @@ class Ability
 
     # Clients who have booked an appointment with this therapist
     # (replaces the old admin-assigned pairing).
+    # Therapists can read profiles of clients they have a clinical
+    # relationship with. Two durable signals constitute a relationship:
+    #
+    #   1. They have at least one non-cancelled appointment together.
+    #      Past or future, completed or no-show — anything that
+    #      represents actual clinical contact.
+    #
+    #   2. They appear in the client's therapist-assignment history
+    #      (Phase 14). A former therapist who saw the client through
+    #      several sessions, then the client switched away (which
+    #      requires cancelling pending appointments first), would
+    #      otherwise vanish from #1 — yet they retain a legitimate
+    #      relationship for record-access purposes.
     can :read, ClientProfile do |client_profile|
-      Appointment.where(
+      has_appointments = Appointment.where(
         client_profile_id: client_profile.id,
         therapist_profile_id: tp.id
       ).where.not(status: :cancelled).exists?
+
+      has_assignment = ClientTherapistAssignment.where(
+        client_profile_id: client_profile.id
+      ).where(
+        "from_therapist_id = :id OR to_therapist_id = :id", id: tp.id
+      ).exists?
+
+      has_appointments || has_assignment
     end
 
     # Author and manage their own availability.

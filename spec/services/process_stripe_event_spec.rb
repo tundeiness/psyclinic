@@ -81,19 +81,36 @@ RSpec.describe ProcessStripeEvent do
       expect(ActionMailer::Base.deliveries.size).to eq(0)
     end
 
-    it "does NOT overwrite current_therapist_id if the client already has one" do
-      # Simulate: client already has therapist A (current); they book
-      # an assessment with therapist B (e.g., starting a switch). The
-      # webhook for B's assessment payment should NOT auto-switch the
-      # binding — switching has its own controlled flow.
+    it "refuses to book an assessment with a non-current therapist (Phase 14)" do
+      # Phase 14 hardening: previously, a client with a current
+      # therapist could book an assessment with someone else; the
+      # webhook would deliver the payment but NOT auto-switch the
+      # binding, leaving them paid up but still bound to their
+      # original therapist (a quiet trap). The fix refuses the
+      # booking upstream so the client is pushed to the explicit
+      # SwitchTherapist flow that explains the forfeit and consents.
       other_tp = create(:user, :therapist).therapist_profile
       cp.update!(current_therapist_id: other_tp.id)
 
-      booking = pending_assessment_booking
-      ProcessStripeEvent.call(success_event(booking.payment.provider_reference))
+      # The slot belongs to `tp` (not `other_tp`), so it's a different
+      # therapist than the client's current one.
+      slot = AvailabilitySlot.create!(
+        therapist_profile: tp,
+        starts_at: 2.days.from_now,
+        ends_at: 2.days.from_now + 1.hour,
+        status: :approved
+      )
 
-      # current_therapist remains as it was set before; switching is
-      # the explicit flow that handles re-binding (later phase).
+      result = BookAppointment.call(
+        client_profile: cp,
+        availability_slot_id: slot.id,
+        session_kind: :assessment
+      )
+
+      expect(result.success?).to be(false)
+      expect(result.error).to match(/current therapist.*switch/i)
+
+      # Binding remains untouched.
       expect(cp.reload.current_therapist_id).to eq(other_tp.id)
     end
   end

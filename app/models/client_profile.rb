@@ -15,6 +15,8 @@ class ClientProfile < ApplicationRecord
   # (active + completed + forfeited history).
   has_many :session_blocks, dependent: :destroy
   has_many :client_contracts, dependent: :destroy
+  has_many :therapist_assignments,
+    class_name: "ClientTherapistAssignment", dependent: :destroy
 
   # EMR associations.
   #

@@ -63,6 +63,29 @@ module Api
         render json: { session_note: serialize(@note) }
       end
 
+      # GET /api/v1/appointments/:appointment_id/session_note/pdf
+      # Phase 15: PDF export. Reuses read authorization (which
+      # already permits the "former therapist authored this" case).
+      # Watermarked when unsigned.
+      def pdf
+        authorize! :read, (@note || read_placeholder)
+        return render_not_found unless @note
+
+        body = Pdf::SessionNoteRenderer.new(
+          record: @note,
+          generated_by: current_user,
+          title: "Session note"
+        ).render
+
+        client_name = @note.client_profile&.full_name.to_s
+        filename = "session-note-#{client_name.parameterize}-" \
+                   "#{(@note.session_date || Date.current).iso8601}.pdf"
+        send_data body,
+          type: "application/pdf",
+          disposition: "attachment",
+          filename: filename
+      end
+
       private
 
       def read_placeholder

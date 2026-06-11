@@ -96,6 +96,8 @@ Rails.application.routes.draw do
         # Singular resource — one intake form per client.
         resource :intake_form, only: %i[show create update], controller: "intake_forms" do
           post :sign
+          # Phase 15: PDF export. Watermarked when unsigned.
+          get :pdf
         end
       end
 
@@ -106,6 +108,8 @@ Rails.application.routes.draw do
         resource :session_note, only: %i[show create update],
           controller: "session_notes" do
           post :sign
+          # Phase 15: PDF export. Watermarked when unsigned.
+          get :pdf
         end
       end
 

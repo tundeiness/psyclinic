@@ -58,6 +58,28 @@ module Api
         render json: { intake_form: serialize(@intake) }
       end
 
+      # GET /api/v1/clients/:client_id/intake_form/pdf
+      # Phase 15: PDF export. Reuses the existing read authorization
+      # (which already handles the "former therapist authored this"
+      # case via the ability rule). Watermarked when unsigned.
+      def pdf
+        authorize! :read, (@intake || read_placeholder)
+        return render_not_found unless @intake
+
+        body = Pdf::IntakeFormRenderer.new(
+          record: @intake,
+          generated_by: current_user,
+          title: "Intake form"
+        ).render
+
+        filename = "intake-#{@client_profile.full_name.parameterize}-" \
+                   "#{Date.current.iso8601}.pdf"
+        send_data body,
+          type: "application/pdf",
+          disposition: "attachment",
+          filename: filename
+      end
+
       private
 
       def read_placeholder

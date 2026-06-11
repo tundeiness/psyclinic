@@ -99,13 +99,37 @@ else
   puts "  client already exists"
 end
 
-# v2 dev convenience: pin Jane as John's current therapist so the EMR
-# ability rules grant access in development. In production this gets
-# set by the booking flow (Phase 5+). Idempotent — overwrites only if
-# unset to avoid clobbering manual test state.
-if client.client_profile && client.client_profile.current_therapist_id.nil?
-  client.client_profile.update!(current_therapist: therapist.therapist_profile)
-  puts "  pinned John -> Jane as current therapist (v2 dev seed)"
+# NOTE: We deliberately do NOT pin a current_therapist on John in
+# the seed. An earlier version did so as a "v2 dev convenience" but
+# that produced an internally-inconsistent state: a client bound to
+# a therapist without ever having paid for an assessment with them
+# (which is impossible in production). The demo paid appointment
+# below now uses session_kind: :assessment, so ConfirmPayment sets
+# current_therapist_id naturally — same end state, real flow.
+
+# Phase 15 dev convenience: pre-sign John's services contract so a
+# fresh `db:seed` lands him past the contract gate. Without this
+# every reset puts him into "Sign your contract" state and the
+# downstream QA flows (booking, EMR PDF download, switching) all
+# require the user to click through /contract first. The signing
+# service requires that the typed name match the user's actual
+# first + last name; we feed the right value to satisfy that check.
+if client.client_profile &&
+   client.client_profile.client_contracts.none?(&:valid_for_use?)
+  begin
+    SignClientContract.call(
+      client_profile: client.client_profile,
+      typed_name: client.full_name,
+      signed_from_ip: "127.0.0.1"
+    )
+    puts "  signed services contract for John (dev seed)"
+  rescue => e
+    # Never block the rest of the seed on this convenience step —
+    # if signing fails for any reason (e.g., service-side rule
+    # change), log and continue. The user can still sign through
+    # the UI.
+    puts "  could not pre-sign John's contract (#{e.class}): #{e.message}"
+  end
 end
 
 # Demo data: one approved slot ~36h out, plus a paid, booked appointment
@@ -122,12 +146,20 @@ if client.persisted? && therapist.persisted?
       ends_at: 36.hours.from_now + 1.hour,
       status: :approved
     )
+    # session_kind: :assessment so this works even when John has no
+    # current_therapist yet (the pre-pin step was removed). On
+    # ConfirmPayment success, current_therapist_id gets set to Jane
+    # naturally — same end state as the old pre-pin approach, but
+    # via the real production flow.
     booking = BookAppointment.call(
-      client_profile: cp, availability_slot_id: slot.id, reason: "Initial consultation"
+      client_profile: cp,
+      availability_slot_id: slot.id,
+      session_kind: :assessment,
+      reason: "Initial consultation"
     )
     if booking.success?
       ConfirmPayment.call(payment: booking.payment)
-      puts "  created demo paid appointment (~36h out) for reminder/dashboard demo"
+      puts "  created demo paid assessment (~36h out) for reminder/dashboard demo"
     else
       puts "  demo appointment skipped: #{booking.error}"
     end

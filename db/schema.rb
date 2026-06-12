@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_01_000024) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_01_000025) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -331,16 +331,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_01_000024) do
     t.bigint "client_profile_id", null: false
     t.bigint "appointment_id"
     t.bigint "author_id", null: false
-    t.date "session_date"
-    t.time "session_start_time"
-    t.time "session_end_time"
-    t.text "review"
-    t.text "addressed_and_plan"
-    t.text "clinician_impression"
     t.datetime "signed_at"
     t.bigint "signed_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "assessment_summary"
+    t.text "presenting_problems"
+    t.text "treatment_goals"
+    t.text "interventions_planned"
+    t.text "session_frequency"
+    t.text "estimated_duration"
+    t.text "risk_considerations"
+    t.text "discharge_criteria"
+    t.date "prepared_on"
     t.index ["appointment_id"], name: "index_service_plan_notes_on_appointment_id"
     t.index ["author_id"], name: "index_service_plan_notes_on_author_id"
     t.index ["client_profile_id"], name: "index_service_plan_notes_on_client_profile_id", unique: true

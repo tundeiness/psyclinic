@@ -99,6 +99,15 @@ Rails.application.routes.draw do
           # Phase 15: PDF export. Watermarked when unsigned.
           get :pdf
         end
+        # Phase 16: service plan note — one per client, written at
+        # session 2 as the treatment-planning record. Same pattern
+        # as intake.
+        resource :service_plan_note,
+          only: %i[show create update],
+          controller: "service_plan_notes" do
+          post :sign
+          get :pdf
+        end
       end
 
       # Phase 11: session notes — one per appointment, therapist-authored,

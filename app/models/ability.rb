@@ -189,8 +189,13 @@ class Ability
     # their dashboard when asked. No signature; submission = locked.
     # No client access to therapist-authored records (intake, session
     # note, service plan).
-    can %i[create read], DassAssessment, client_profile_id: cp.id
-    can %i[create read], WheelOfLifeAssessment, client_profile_id: cp.id
+    # Phase 17: Client-authored DASS and WoL need :update so the
+    # client can progressively save Likert responses before
+    # submitting (the Signable lock prevents post-submit edits via
+    # the model's before_update hook, so we don't need to gate :update
+    # behind unsigned status here).
+    can %i[create read update], DassAssessment, client_profile_id: cp.id
+    can %i[create read update], WheelOfLifeAssessment, client_profile_id: cp.id
 
     # v2 block purchasing — clients buy 6-session blocks for use
     # with their current therapist. They can see their own blocks

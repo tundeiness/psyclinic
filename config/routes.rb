@@ -85,6 +85,14 @@ Rails.application.routes.draw do
         resources :clients, only: %i[index show]
         resources :availability_slots, only: %i[index create update destroy]
         resources :appointments, only: %i[index show update]
+
+        # Phase 17.2: DASS-42 — therapist read-only view of a client's
+        # submitted assessments. Drafts are private until submitted.
+        resources :clients, only: [] do
+          resources :dass_assessments, only: %i[index show] do
+            get :pdf, on: :member
+          end
+        end
       end
 
       # --- EMR clinical records (therapist + admin) ---
@@ -144,6 +152,13 @@ Rails.application.routes.draw do
         # Phase 14: therapist switching.
         get  "therapist_switches/preview", to: "therapist_switches#preview"
         post "therapist_switches",         to: "therapist_switches#create"
+
+        # Phase 17.2: client-authored DASS-42. The client lists their
+        # own assessments, starts new drafts, saves progress, and
+        # submits-to-sign.
+        resources :dass_assessments, only: %i[index show create update] do
+          post :submit, on: :member
+        end
       end
 
       # --- Stripe webhooks (real Stripe; also receives dev mock events

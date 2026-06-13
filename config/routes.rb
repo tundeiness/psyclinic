@@ -88,8 +88,12 @@ Rails.application.routes.draw do
 
         # Phase 17.2: DASS-42 — therapist read-only view of a client's
         # submitted assessments. Drafts are private until submitted.
+        # Phase 18.1: same pattern for Wheel of Life.
         resources :clients, only: [] do
           resources :dass_assessments, only: %i[index show] do
+            get :pdf, on: :member
+          end
+          resources :wheel_of_life_assessments, only: %i[index show] do
             get :pdf, on: :member
           end
         end
@@ -157,6 +161,12 @@ Rails.application.routes.draw do
         # own assessments, starts new drafts, saves progress, and
         # submits-to-sign.
         resources :dass_assessments, only: %i[index show create update] do
+          post :submit, on: :member
+        end
+
+        # Phase 18.1: client-authored Wheel of Life — same pattern.
+        resources :wheel_of_life_assessments,
+          only: %i[index show create update] do
           post :submit, on: :member
         end
       end
